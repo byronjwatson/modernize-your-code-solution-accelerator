@@ -142,7 +142,7 @@ jobs:
             --parameters \
                 solutionName="${{ env.SOLUTION_PREFIX }}" \
                 azureAiServiceLocation='${{ env.AZURE_LOCATION }}' \
-                imageVersion="${IMAGE_TAG}" \
+                imageTag="${IMAGE_TAG}" \
                 createdBy="Pipeline" \
                 tags="{'Purpose':'Deploying and Cleaning Up Resources for Validation','CreatedDate':'$current_date'}"
 
