@@ -31,7 +31,7 @@ import { Light as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vs } from "react-syntax-highlighter/dist/esm/styles/hljs"
 import sql from "react-syntax-highlighter/dist/cjs/languages/hljs/sql"
 import { useNavigate, useParams } from "react-router-dom"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { getApiUrl, headerBuilder } from '../api/config';
 import BatchHistoryPanel from "../components/batchHistoryPanel"
 import PanelRight from "../components/Panels/PanelRight";
@@ -497,6 +497,7 @@ const ModernizationPage = () => {
   const [fileId, setFileId] = React.useState<string>("");
   const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
   const [allFilesCompleted, setAllFilesCompleted] = useState(false);
+  const [progressPercentage, setProgressPercentage] = useState(0);
   const [isZipButtonDisabled, setIsZipButtonDisabled] = useState(true);
   const [fileLoading, setFileLoading] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
@@ -514,18 +515,9 @@ const ModernizationPage = () => {
         if (!selectedFile || !selectedFile.translatedCode) {
           setFileLoading(true);
           const newFileUpdate = await fetchFileFromAPI(selectedFile?.fileId || "");
-          setFiles((prevFiles) =>
-            prevFiles.map((file) =>
-              file.fileId === selectedFile?.fileId
-                ? {
-                    ...file,
-                    code: newFileUpdate.content,
-                    translatedCode: newFileUpdate.translated_content,
-                  }
-                : file
-            )
-          );
           setFileLoading(false);
+        } else {
+
         }
 
       } catch (err) {
@@ -1013,16 +1005,16 @@ useEffect(() => {
     };
   }, [handleWebSocketMessage]);
 
-  // Set a timeout for initial loading - if still loading after 30 seconds, show a warning message
+  // Set a timeout for initial loading - if no progress after 30 seconds, show error
   useEffect(() => {
     const loadingTimeout = setTimeout(() => {
-      if (showLoading) {
+      if (progressPercentage < 5 && showLoading) {
         setLoadingError('Processing is taking longer than expected. You can continue waiting or try again later.');
       }
     }, 30000);
 
     return () => clearTimeout(loadingTimeout);
-  }, [showLoading]);
+  }, [progressPercentage, showLoading]);
 
   // Add timeout mechanism to navigate if no activity for 30 seconds
   useEffect(() => {
