@@ -205,8 +205,8 @@ Copy the contents from the production configuration file to your main parameters
 By default, random GUIDs are generated for VM credentials. To set custom credentials:
 
 ```shell
-azd env set AZURE_ENV_VM_ADMIN_USERNAME <your-username>
-azd env set AZURE_ENV_VM_ADMIN_PASSWORD <your-password>
+azd env set AZURE_ENV_JUMPBOX_ADMIN_USERNAME <your-username>
+azd env set AZURE_ENV_JUMPBOX_ADMIN_PASSWORD <your-password>
 ```
 
 ### 3.3 Advanced Configuration (Optional)
