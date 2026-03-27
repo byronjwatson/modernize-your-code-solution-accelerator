@@ -202,7 +202,7 @@ Copy the contents from the production configuration file to your main parameters
 
 > **Note:** This section only applies if you selected **Production** deployment type in section 3.1. VMs are not deployed in the default Development/Testing configuration.
 
-By default, random GUIDs are generated for VM credentials. To set custom credentials:
+By default, hard-coded fallback values are used for VM credentials (`JumpboxAdminUser` / `JumpboxAdminP@ssw0rd1234!`). To set custom credentials:
 
 ```shell
 azd env set AZURE_ENV_JUMPBOX_ADMIN_USERNAME <your-username>

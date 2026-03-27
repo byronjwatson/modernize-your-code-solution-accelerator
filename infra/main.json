@@ -16625,13 +16625,13 @@
             "value": "Windows"
           },
           "vmSize": {
-            "value": "[coalesce(parameters('vmSize'), 'Standard_D2s_v5')]"
+            "value": "[if(not(empty(parameters('vmSize'))), parameters('vmSize'), 'Standard_D2s_v5')]"
           },
           "adminUsername": {
-            "value": "[coalesce(parameters('vmAdminUsername'), 'JumpboxAdminUser')]"
+            "value": "[if(not(empty(parameters('vmAdminUsername'))), parameters('vmAdminUsername'), 'JumpboxAdminUser')]"
           },
           "adminPassword": {
-            "value": "[coalesce(parameters('vmAdminPassword'), 'JumpboxAdminP@ssw0rd1234!')]"
+            "value": "[if(not(empty(parameters('vmAdminPassword'))), parameters('vmAdminPassword'), 'JumpboxAdminP@ssw0rd1234!')]"
           },
           "managedIdentities": {
             "value": {
