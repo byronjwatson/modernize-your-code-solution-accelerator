@@ -671,15 +671,7 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     projectName: 'proj-${solutionSuffix}'
     projectDescription: 'proj-${solutionSuffix}'
     logAnalyticsWorkspaceResourceId: enableMonitoring ? logAnalyticsWorkspaceResourceId : ''
-    privateNetworking: enablePrivateNetworking
-      ? {
-          virtualNetworkResourceId: virtualNetwork!.outputs.resourceId
-          subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
-          cogServicesPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.cognitiveServices]!.outputs.resourceId
-          openAIPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.openAI]!.outputs.resourceId
-          aiServicesPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.aiServices]!.outputs.resourceId
-        }
-      : null
+    privateNetworking: null // Private endpoint is handled by the standalone aiFoundryPrivateEndpoint module
     existingFoundryProjectResourceId: azureExistingAIProjectResourceId
     disableLocalAuth: true //Should be set to true for WAF aligned configuration
     customSubDomainName: 'aif-${solutionSuffix}'
@@ -715,6 +707,45 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     ]
     tags: allTags
     enableTelemetry: enableTelemetry
+  }
+}
+
+var aiFoundryAiServicesResourceName = 'aif-${solutionSuffix}'
+var useExistingAiFoundryAiProject = !empty(azureExistingAIProjectResourceId)
+
+module aiFoundryPrivateEndpoint 'br/public:avm/res/network/private-endpoint:0.8.1' = if (enablePrivateNetworking && !useExistingAiFoundryAiProject) {
+  name: take('pep-${aiFoundryAiServicesResourceName}-deployment', 64)
+  params: {
+    name: 'pep-${aiFoundryAiServicesResourceName}'
+    customNetworkInterfaceName: 'nic-${aiFoundryAiServicesResourceName}'
+    location: location
+    tags: allTags
+    privateLinkServiceConnections: [
+      {
+        name: 'pep-${aiFoundryAiServicesResourceName}-connection'
+        properties: {
+          privateLinkServiceId: aiServices.outputs.resourceId
+          groupIds: ['account']
+        }
+      }
+    ]
+    privateDnsZoneGroup: {
+      privateDnsZoneGroupConfigs: [
+        {
+          name: 'ai-services-dns-zone-cognitiveservices'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.cognitiveServices]!.outputs.resourceId
+        }
+        {
+          name: 'ai-services-dns-zone-openai'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.openAI]!.outputs.resourceId
+        }
+        {
+          name: 'ai-services-dns-zone-aiservices'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.aiServices]!.outputs.resourceId
+        }
+      ]
+    }
+    subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
   }
 }
 
