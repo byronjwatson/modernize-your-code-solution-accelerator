@@ -3,7 +3,7 @@ metadata:
     template: modernize-your-code-solution-accelerator@1.0
 
 requiredVersions:
-  azd: '>= 1.18.0'
+  azd: '>= 1.18.0 != 1.23.9'
 
 parameters:
   AzureAiServiceLocation:
