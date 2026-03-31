@@ -2,6 +2,9 @@ name: Azure Dev Deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - psl-weeklyschedule-codmod
 
 permissions:
   contents: read
