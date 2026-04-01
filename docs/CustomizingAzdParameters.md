@@ -15,13 +15,13 @@ By default this template will use the environment name as the prefix to prevent 
 | `AZURE_ENV_GPT_MODEL_NAME`             | string  | `gpt-4o`         | Set the Model Name (allowed values: gpt-4o).                                                         |
 | `AZURE_ENV_GPT_MODEL_VERSION`          | string  | `2024-08-06`     | Set the Azure model version (allowed values: 2024-08-06)    |
 | `AZURE_ENV_GPT_MODEL_CAPACITY`         | integer | `150`            | Set the Model Capacity (choose a number based on available GPT model capacity in your subscription). |
-| `AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID`| string  | Guide to get your [Existing Workspace ID](/docs/re-use-log-analytics.md)     | Set this if you want to reuse an existing Log Analytics Workspace instead of creating a new one.     |
+| `AZURE_ENV_EXISTING_LOG_ANALYTICS_WORKSPACE_RID`| string  | Guide to get your [Existing Workspace ID](/docs/re-use-log-analytics.md)     | Set this if you want to reuse an existing Log Analytics Workspace instead of creating a new one.     |
 | `AZURE_ENV_IMAGETAG`                   | string  | `latest`         | Set the Image tag Like (allowed values: latest, dev, hotfix)    |
 | `AZURE_ENV_VM_SIZE`                    | string  | `Standard_DS2_v2`         | Specifies the size of the Jumpbox Virtual Machine. Set a custom value if `enablePrivateNetworking` is `true`.    |
 | `AZURE_ENV_VM_ADMIN_USERNAME`          | string  | `JumpboxAdminUser`          | Specifies the administrator username for the Jumpbox Virtual Machine.      |
 | `AZURE_ENV_VM_ADMIN_PASSWORD`          | string  | `JumpboxAdminP@ssw0rd1234!` | Specifies the administrator password for the Jumpbox Virtual Machine.      |
 | `AZURE_ENV_SECONDARY_LOCATION`         | string  | *(not set by default)*      | Specifies the secondary region for Cosmos DB. Required if `enableRedundancy` is `true`. |
-| `AZURE_ENV_FOUNDRY_PROJECT_RID`        | string  | *(not set by default)*      | Specifies the existing AI Foundry Project Resource ID if it needs to be reused. |
+| `AZURE_EXISTING_AIPROJECT_RESOURCE_ID` | string  | *(not set by default)*      | Specifies the existing AI Foundry Project Resource ID if it needs to be reused. |
 | `AZURE_ENV_CONTAINER_REGISTRY_ENDPOINT`| string  | `cmsacontainerreg.azurecr.io`     | Specifies the Azure Container Registry endpoint to use for container images. |
 
 ---
@@ -36,12 +36,12 @@ azd env set <PARAMETER_NAME> <VALUE>
 
 Set the Log Analytics Workspace Id if you need to reuse the existing workspace
 ```shell
-azd env set AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID '/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.OperationalInsights/workspaces/<workspace-name>'
+azd env set AZURE_ENV_EXISTING_LOG_ANALYTICS_WORKSPACE_RID '/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.OperationalInsights/workspaces/<workspace-name>'
 ```
 
 Set the Azure Existing AI Foundry Project Resource ID if you need to reuse the existing AI Foundry Project
 ```shell
-azd env set AZURE_ENV_FOUNDRY_PROJECT_RID '/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.CognitiveServices/accounts/<account-name>/projects/<project-name>'
+azd env set AZURE_EXISTING_AIPROJECT_RESOURCE_ID '/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.CognitiveServices/accounts/<account-name>/projects/<project-name>'
 ```
 
 **Example:**
