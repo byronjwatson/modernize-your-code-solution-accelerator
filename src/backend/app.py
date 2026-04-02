@@ -47,14 +47,17 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+# Suppress noisy Azure SDK and OpenTelemetry internal loggers.
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+logging.getLogger("azure.core.pipeline.policies._universal").setLevel(logging.WARNING)
+logging.getLogger("azure.cosmos").setLevel(logging.WARNING)
+logging.getLogger("opentelemetry.sdk").setLevel(logging.WARNING)
+logging.getLogger("azure.monitor.opentelemetry.exporter.export._base").setLevel(logging.WARNING)
+
 # Package config: Azure loggers set to WARNING to suppress INFO
 for logger_name in AZURE_LOGGING_PACKAGES:
     logging.getLogger(logger_name).setLevel(getattr(logging, AZURE_PACKAGE_LOGGING_LEVEL, logging.WARNING))
 
-# Suppress noisy OpenTelemetry and Azure Monitor logs
-# logging.getLogger("opentelemetry.sdk").setLevel(logging.ERROR)
-# logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
-# logging.getLogger("azure.monitor.opentelemetry.exporter.export._base").setLevel(logging.WARNING)
 
 logger = AppLogger("app")
 
@@ -70,7 +73,7 @@ async def lifespan(app: FastAPI):
 
     # Startup
     try:
-        logger.logger.info("Initializing SQL agents...")
+        logger.info("Initializing SQL agents...")
 
         # Create Azure credentials and client
         creds = get_azure_credential(app_config.azure_client_id)
@@ -91,10 +94,10 @@ async def lifespan(app: FastAPI):
 
         # Set the global agents instance
         set_sql_agents(sql_agents)
-        logger.logger.info("SQL agents initialized successfully.")
+        logger.info("SQL agents initialized successfully.")
 
     except Exception as exc:
-        logger.logger.error("Failed to initialize SQL agents: %s", exc)
+        logger.error("Failed to initialize SQL agents")
         # Don't raise the exception to allow the app to start even if agents fail
 
     yield  # Application runs here
@@ -102,9 +105,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
     try:
         if sql_agents:
-            logger.logger.info("Application shutting down - cleaning up SQL agents...")
+            logger.info("Application shutting down - cleaning up SQL agents...")
             await sql_agents.delete_agents()
-            logger.logger.info("SQL agents cleaned up successfully.")
+            logger.info("SQL agents cleaned up successfully.")
 
             # Clear the global agents instance
             await clear_sql_agents()
@@ -113,7 +116,7 @@ async def lifespan(app: FastAPI):
             await azure_client.close()
 
     except Exception as exc:
-        logger.logger.error("Error during agent cleanup: %s", exc)
+        logger.error("Error during agent cleanup")
 
 
 def create_app() -> FastAPI:
@@ -133,8 +136,7 @@ def create_app() -> FastAPI:
     # This must happen AFTER app creation but BEFORE route registration
     instrumentation_key = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     if instrumentation_key:
-        # Fix: Patch buggy instrumentors before Azure Monitor loads them
-        # See: https://github.com/microsoft/semantic-kernel/issues/13715
+        # Patch azure.ai.agents, azure.ai.projects instrumentor to handle dict response_format (prevents ValueError)
         patch_instrumentors()
 
         # Configure Azure Monitor with FULL auto-instrumentation
@@ -149,9 +151,9 @@ def create_app() -> FastAPI:
             excluded_urls="health,socket,ws",
         )
 
-        logger.logger.info("Application Insights configured with full auto-instrumentation")
+        logger.info("Application Insights configured with full auto-instrumentation")
     else:
-        logger.logger.warning("No Application Insights connection string found. Telemetry disabled.")
+        logger.warning("No Application Insights connection string found. Telemetry disabled.")
 
     # Include routers with /api prefix
     app.include_router(backend_router, prefix="/api", tags=["backend"])

@@ -285,7 +285,6 @@ module applicationInsights 'br/public:avm/res/insights/component:0.7.0' = if (en
     name: 'appi-${solutionSuffix}'
     location: location
     workspaceResourceId: logAnalyticsWorkspaceResourceId
-    diagnosticSettings: [{ workspaceResourceId: logAnalyticsWorkspaceResourceId }]
     tags: allTags
     enableTelemetry: enableTelemetry
     retentionInDays: 365

@@ -43,8 +43,8 @@ class AppLogger:
     def warning(self, message: Any, **kwargs) -> None:
         self.logger.warning(self._format_message(message, **kwargs))
 
-    def error(self, message: Any, **kwargs) -> None:
-        self.logger.error(self._format_message(message, **kwargs))
+    def error(self, message: Any, exc_info=True, **kwargs) -> None:
+        self.logger.error(self._format_message(message, **kwargs), exc_info=exc_info)
 
     def critical(self, message: Any, **kwargs) -> None:
         self.logger.critical(self._format_message(message, **kwargs))
