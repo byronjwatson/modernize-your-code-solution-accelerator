@@ -1,4 +1,15 @@
-"""\nPatch for Azure AI telemetry instrumentors.\n\nFixes GitHub issue: https://github.com/microsoft/semantic-kernel/issues/13715\n\nThe bug: agent_api_response_to_str() in both azure.ai.agents and azure.ai.projects\nraises ValueError when response_format is a dict (e.g. from Semantic Kernel's AzureAIAgent).\nIt only handles str and None types.\n\nThe fix: Monkey-patch that method to convert dict/other types to JSON string instead of raising.\nMust be called BEFORE configure_azure_monitor() triggers any instrumentation.\n"""
+"""
+Patch for Azure AI telemetry instrumentors.
+
+Fixes GitHub issue: https://github.com/microsoft/semantic-kernel/issues/13715
+
+The bug: agent_api_response_to_str() in both azure.ai.agents and azure.ai.projects
+raises ValueError when response_format is a dict (e.g. from Semantic Kernel's AzureAIAgent).
+It only handles str and None types.
+
+The fix: Monkey-patch that method to convert dict/other types to JSON string instead of raising.
+Must be called BEFORE configure_azure_monitor() triggers any instrumentation.
+"""
 
 import json
 import logging
@@ -23,7 +34,13 @@ def patch_instrumentors():
     """
     Patch Azure AI telemetry instrumentors to handle dict response_format.
 
-    This fixes the ValueError: \"Unknown response format <class 'dict'>\" error\n    that occurs when Semantic Kernel's AzureAIAgent passes a dict as response_format\n    and Azure Monitor telemetry instrumentor tries to serialize it.\n\n    Patches both azure.ai.agents and azure.ai.projects packages.\n    Must be called BEFORE configure_azure_monitor().\n    """
+    This fixes the ValueError: "Unknown response format <class 'dict'>" error
+    that occurs when Semantic Kernel's AzureAIAgent passes a dict as response_format
+    and Azure Monitor telemetry instrumentor tries to serialize it.
+
+    Patches both azure.ai.agents and azure.ai.projects packages.
+    Must be called BEFORE configure_azure_monitor().
+    """
     # Patch azure.ai.agents (primary package with the bug)
     try:
         from azure.ai.agents.telemetry._ai_agents_instrumentor import (

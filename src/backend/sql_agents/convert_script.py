@@ -5,7 +5,6 @@ and updates the database with the results.
 """
 
 import json
-import logging
 
 from api.status_updates import send_status_update
 

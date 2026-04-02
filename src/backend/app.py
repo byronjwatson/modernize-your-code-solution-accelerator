@@ -96,7 +96,7 @@ async def lifespan(app: FastAPI):
         set_sql_agents(sql_agents)
         logger.info("SQL agents initialized successfully.")
 
-    except Exception as exc:
+    except Exception:  # noqa: BLE001
         logger.error("Failed to initialize SQL agents")
         # Don't raise the exception to allow the app to start even if agents fail
 
@@ -115,7 +115,7 @@ async def lifespan(app: FastAPI):
         if azure_client:
             await azure_client.close()
 
-    except Exception as exc:
+    except Exception:  # noqa: BLE001
         logger.error("Error during agent cleanup")
 
 
