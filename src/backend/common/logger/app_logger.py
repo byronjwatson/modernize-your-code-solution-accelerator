@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 from typing import Any
 
 
@@ -43,7 +44,9 @@ class AppLogger:
     def warning(self, message: Any, **kwargs) -> None:
         self.logger.warning(self._format_message(message, **kwargs))
 
-    def error(self, message: Any, exc_info=True, **kwargs) -> None:
+    def error(self, message: Any, exc_info=None, **kwargs) -> None:
+        if exc_info is None:
+            exc_info = sys.exc_info()[0] is not None
         self.logger.error(self._format_message(message, **kwargs), exc_info=exc_info)
 
     def critical(self, message: Any, **kwargs) -> None:
