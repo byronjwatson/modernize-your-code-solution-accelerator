@@ -6,10 +6,10 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "9733680305260753032"
+      "templateHash": "5257255376706775962"
     },
     "name": "Modernize Your Code Solution Accelerator",
-    "description": "CSA CTO Gold Standard Solution Accelerator for Modernize Your Code. \n"
+    "description": "CSA CTO Gold Standard Solution Accelerator for Modernize Your Code. \r\n"
   },
   "parameters": {
     "solutionName": {
@@ -3919,13 +3919,6 @@
             "value": "[parameters('location')]"
           },
           "workspaceResourceId": "[if(variables('useExistingLogAnalytics'), createObject('value', parameters('existingLogAnalyticsWorkspaceId')), createObject('value', reference('logAnalyticsWorkspace').outputs.resourceId.value))]",
-          "diagnosticSettings": {
-            "value": [
-              {
-                "workspaceResourceId": "[if(variables('useExistingLogAnalytics'), parameters('existingLogAnalyticsWorkspaceId'), reference('logAnalyticsWorkspace').outputs.resourceId.value)]"
-              }
-            ]
-          },
           "tags": {
             "value": "[variables('allTags')]"
           },
@@ -12902,9 +12895,9 @@
       },
       "dependsOn": [
         "applicationInsights",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').oms)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').monitor)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').oms)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').ods)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').agentSvc)]",
         "dataCollectionEndpoint",
@@ -31929,8 +31922,8 @@
       },
       "dependsOn": [
         "aiServices",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').cognitiveServices)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').openAI)]",
         "virtualNetwork"
       ]
@@ -40182,8 +40175,8 @@
       },
       "dependsOn": [
         "appIdentity",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageFile)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "logAnalyticsWorkspace",
         "virtualNetwork"
       ]
