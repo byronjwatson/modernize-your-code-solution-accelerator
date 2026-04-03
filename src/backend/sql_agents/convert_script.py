@@ -5,10 +5,10 @@ and updates the database with the results.
 """
 
 import json
-import logging
 
 from api.status_updates import send_status_update
 
+from common.logger.app_logger import AppLogger
 from common.models.api import (
     FileProcessUpdate,
     FileRecord,
@@ -29,8 +29,7 @@ from sql_agents.helpers.agents_manager import SqlAgents
 from sql_agents.helpers.comms_manager import CommsManager
 from sql_agents.helpers.models import AgentType
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = AppLogger("ConvertScript")
 
 
 async def convert_script(
@@ -41,7 +40,7 @@ async def convert_script(
     # agent_config: AgentBaseConfig,
 ) -> str:
     """Use the team of agents to migrate a sql script."""
-    logger.info("Migrating query: %s\n", source_script)
+    logger.info("Starting migration", file_id=str(file.file_id), batch_id=str(file.batch_id))
 
     # Setup the group chat for the agents
     comms_manager = CommsManager(
@@ -124,7 +123,7 @@ async def convert_script(
                                         response.content or ""
                                     )
                                 except Exception as picker_exc:
-                                    logger.error("Picker agent returned invalid response: %s", picker_exc)
+                                    logger.error("Picker agent returned invalid response", error=str(picker_exc))
                                     # Fallback to a valid PickerResponse with default values
                                     result = PickerResponse(
                                         conclusion="No valid candidate could be selected. The agent did not return a proper response.",
@@ -139,14 +138,14 @@ async def convert_script(
                                 current_migration = result.fixed_query
                             case AgentType.SEMANTIC_VERIFIER.value:
                                 logger.info(
-                                    "Semantic verifier agent response: %s", response.content
+                                    "Semantic verifier agent response received", content=response.content
                                 )
                                 try:
                                     result = SemanticVerifierResponse.model_validate_json(
                                         response.content or ""
                                     )
                                 except Exception as verifier_exc:
-                                    logger.error("Semantic Verifier agent returned invalid response: %s", verifier_exc)
+                                    logger.error("Semantic Verifier agent returned invalid response", error=str(verifier_exc))
                                     # Fallback to a valid SemanticVerifierResponse with default values
                                     result = SemanticVerifierResponse(
                                         judgement="Semantic verifier agent failed to return a valid response.",
@@ -215,11 +214,11 @@ async def convert_script(
                         "content": response.content,
                     }
 
-                    logger.info(description)
+                    logger.info("Agent response received", role=response.role, name=response.name or "*")
                     try:
                         parsed_content = json.loads(response.content or "{}")
                     except json.JSONDecodeError:
-                        logger.warning("Invalid JSON from agent: %s", response.content)
+                        logger.warning("Invalid JSON from agent", name=response.name or "*")
                         parsed_content = {
                             "input_summary": "",
                             "candidates": [],
@@ -249,7 +248,7 @@ async def convert_script(
                         AuthorRole(response.role),
                     )
             except Exception as e:
-                logger.error("Error during comms_manager.async_invoke(): %s", str(e))
+                logger.error("Error during comms_manager.async_invoke()", file_id=str(file.file_id), batch_id=str(file.batch_id), error=str(e))
                 # Log the error to the batch service for tracking
                 await batch_service.create_file_log(
                     str(file.file_id),
@@ -279,7 +278,7 @@ async def convert_script(
 
         # Handle the case where migration failed and current_migration is None
         if current_migration is None:
-            logger.info("# Migration failed - no valid migration produced.")
+            logger.info("Migration failed - no valid migration produced", file_id=str(file.file_id))
             return ""
 
         is_valid = await validate_migration(
@@ -287,14 +286,10 @@ async def convert_script(
         )
 
         if not is_valid:
-            logger.info("# Migration failed.")
+            logger.info("Migration validation failed", file_id=str(file.file_id))
             return ""
 
-        logger.info("# Migration complete.")
-        logger.info("Final query: %s\n", migrated_query)
-        logger.info(
-            "Analysis of source and migrated queries:\n%s", "semantic verifier response"
-        )
+        logger.info("Migration completed successfully", file_id=str(file.file_id), batch_id=str(file.batch_id))
 
         return migrated_query
 
@@ -302,9 +297,9 @@ async def convert_script(
         # Clean up threads and communication resources - guaranteed to run
         try:
             await comms_manager.cleanup()
-            logger.debug("Thread cleanup completed successfully for file %s", file.file_id)
+            logger.debug("Thread cleanup completed", file_id=str(file.file_id))
         except Exception as cleanup_exc:
-            logger.error("Error during thread cleanup for file %s: %s", file.file_id, cleanup_exc)
+            logger.error("Error during thread cleanup", file_id=str(file.file_id), error=str(cleanup_exc))
 
 
 async def validate_migration(

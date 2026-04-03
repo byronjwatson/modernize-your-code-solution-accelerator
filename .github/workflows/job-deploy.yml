@@ -56,7 +56,7 @@ on:
         required: false
         default: ''
         type: string
-      AZURE_ENV_FOUNDRY_PROJECT_RID:
+      AZURE_EXISTING_AIPROJECT_RESOURCE_ID:
         description: 'Foundry Project Resource ID (Optional)'
         required: false
         default: ''
@@ -125,7 +125,7 @@ jobs:
           INPUT_CLEANUP_RESOURCES: ${{ inputs.cleanup_resources }}
           INPUT_RUN_E2E_TESTS: ${{ inputs.run_e2e_tests }}
           INPUT_AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID: ${{ inputs.AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID }}
-          INPUT_AZURE_ENV_FOUNDRY_PROJECT_RID: ${{ inputs.AZURE_ENV_FOUNDRY_PROJECT_RID }}
+          INPUT_AZURE_EXISTING_AIPROJECT_RESOURCE_ID: ${{ inputs.AZURE_EXISTING_AIPROJECT_RESOURCE_ID }}
           INPUT_DOCKER_IMAGE_TAG: ${{ inputs.docker_image_tag }}
         run: |
           echo "🔍 Validating workflow input parameters..."
@@ -201,15 +201,15 @@ jobs:
             fi
           fi
           
-          # Validate AZURE_ENV_FOUNDRY_PROJECT_RID (Azure Resource ID format)
-          if [[ -n "$INPUT_AZURE_ENV_FOUNDRY_PROJECT_RID" ]]; then
-            if [[ ! "$INPUT_AZURE_ENV_FOUNDRY_PROJECT_RID" =~ ^/subscriptions/[a-fA-F0-9-]+/[Rr]esource[Gg]roups/[^/]+/providers/([Mm]icrosoft\.[Mm]achine[Ll]earning[Ss]ervices/([Ww]orkspaces|[Pp]rojects)/[^/]+|[Mm]icrosoft\.[Cc]ognitive[Ss]ervices/[Aa]ccounts/[^/]+/[Pp]rojects/[^/]+)$ ]]; then
-              echo "❌ ERROR: AZURE_ENV_FOUNDRY_PROJECT_RID is invalid. Must be a valid Azure Resource ID format:"
+          # Validate AZURE_EXISTING_AIPROJECT_RESOURCE_ID (Azure Resource ID format)
+          if [[ -n "$INPUT_AZURE_EXISTING_AIPROJECT_RESOURCE_ID" ]]; then
+            if [[ ! "$INPUT_AZURE_EXISTING_AIPROJECT_RESOURCE_ID" =~ ^/subscriptions/[a-fA-F0-9-]+/[Rr]esource[Gg]roups/[^/]+/providers/([Mm]icrosoft\.[Mm]achine[Ll]earning[Ss]ervices/([Ww]orkspaces|[Pp]rojects)/[^/]+|[Mm]icrosoft\.[Cc]ognitive[Ss]ervices/[Aa]ccounts/[^/]+/[Pp]rojects/[^/]+)$ ]]; then
+              echo "❌ ERROR: AZURE_EXISTING_AIPROJECT_RESOURCE_ID is invalid. Must be a valid Azure Resource ID format:"
               echo "   /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.CognitiveServices/accounts/{accountName}/projects/{projectName}"
-              echo "   Got: '$INPUT_AZURE_ENV_FOUNDRY_PROJECT_RID'"
+              echo "   Got: '$INPUT_AZURE_EXISTING_AIPROJECT_RESOURCE_ID'"
               VALIDATION_FAILED=true
             else
-              echo "✅ AZURE_ENV_FOUNDRY_PROJECT_RID: Valid Resource ID format"
+              echo "✅ AZURE_EXISTING_AIPROJECT_RESOURCE_ID: Valid Resource ID format"
             fi
           fi
           
@@ -244,7 +244,7 @@ jobs:
         env:
           INPUT_EXP: ${{ inputs.EXP }}
           INPUT_LOG_ANALYTICS_WORKSPACE_RID: ${{ inputs.AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID }}
-          INPUT_FOUNDRY_PROJECT_RID: ${{ inputs.AZURE_ENV_FOUNDRY_PROJECT_RID }}
+          INPUT_FOUNDRY_PROJECT_RID: ${{ inputs.AZURE_EXISTING_AIPROJECT_RESOURCE_ID }}
         run: |
           echo "🔍 Validating EXP configuration..."
           
@@ -480,7 +480,7 @@ jobs:
       EXP: ${{ needs.azure-setup.outputs.EXP_ENABLED }}
       WAF_ENABLED: ${{ inputs.waf_enabled == true && 'true' || 'false' }}
       AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID: ${{ inputs.AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID }}
-      AZURE_ENV_FOUNDRY_PROJECT_RID: ${{ inputs.AZURE_ENV_FOUNDRY_PROJECT_RID }}
+      AZURE_EXISTING_AIPROJECT_RESOURCE_ID: ${{ inputs.AZURE_EXISTING_AIPROJECT_RESOURCE_ID }}
     secrets: inherit
 
   deploy-windows:
@@ -498,5 +498,5 @@ jobs:
       EXP: ${{ needs.azure-setup.outputs.EXP_ENABLED }}
       WAF_ENABLED: ${{ inputs.waf_enabled == true && 'true' || 'false' }}
       AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID: ${{ inputs.AZURE_ENV_LOG_ANALYTICS_WORKSPACE_RID }}
-      AZURE_ENV_FOUNDRY_PROJECT_RID: ${{ inputs.AZURE_ENV_FOUNDRY_PROJECT_RID }}
+      AZURE_EXISTING_AIPROJECT_RESOURCE_ID: ${{ inputs.AZURE_EXISTING_AIPROJECT_RESOURCE_ID }}
     secrets: inherit

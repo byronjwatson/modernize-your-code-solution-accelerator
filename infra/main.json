@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.40.2.10011",
-      "templateHash": "4072749222320744493"
+      "templateHash": "12712615740947825780"
     },
     "name": "Modernize Your Code Solution Accelerator",
     "description": "CSA CTO Gold Standard Solution Accelerator for Modernize Your Code. \r\n"
@@ -3919,13 +3919,6 @@
             "value": "[parameters('location')]"
           },
           "workspaceResourceId": "[if(variables('useExistingLogAnalytics'), createObject('value', parameters('existingLogAnalyticsWorkspaceId')), createObject('value', reference('logAnalyticsWorkspace').outputs.resourceId.value))]",
-          "diagnosticSettings": {
-            "value": [
-              {
-                "workspaceResourceId": "[if(variables('useExistingLogAnalytics'), parameters('existingLogAnalyticsWorkspaceId'), reference('logAnalyticsWorkspace').outputs.resourceId.value)]"
-              }
-            ]
-          },
           "tags": {
             "value": "[variables('allTags')]"
           },
@@ -12903,8 +12896,8 @@
       "dependsOn": [
         "applicationInsights",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').agentSvc)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').ods)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').agentSvc)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').monitor)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').oms)]",
         "dataCollectionEndpoint",
@@ -16624,15 +16617,9 @@
           "osType": {
             "value": "Windows"
           },
-          "vmSize": {
-            "value": "[coalesce(parameters('vmSize'), 'Standard_D2s_v3')]"
-          },
-          "adminUsername": {
-            "value": "[coalesce(parameters('vmAdminUsername'), 'JumpboxAdminUser')]"
-          },
-          "adminPassword": {
-            "value": "[coalesce(parameters('vmAdminPassword'), 'JumpboxAdminP@ssw0rd1234!')]"
-          },
+          "vmSize": "[if(not(empty(parameters('vmSize'))), createObject('value', parameters('vmSize')), createObject('value', 'Standard_D2s_v5'))]",
+          "adminUsername": "[if(not(empty(parameters('vmAdminUsername'))), createObject('value', parameters('vmAdminUsername')), createObject('value', 'JumpboxAdminUser'))]",
+          "adminPassword": "[if(not(empty(parameters('vmAdminPassword'))), createObject('value', parameters('vmAdminPassword')), createObject('value', 'JumpboxAdminP@ssw0rd1234!'))]",
           "managedIdentities": {
             "value": {
               "systemAssigned": true
@@ -31929,9 +31916,9 @@
       },
       "dependsOn": [
         "aiServices",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').cognitiveServices)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').openAI)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').cognitiveServices)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
         "virtualNetwork"
       ]
     },
@@ -40182,8 +40169,8 @@
       },
       "dependsOn": [
         "appIdentity",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageFile)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "logAnalyticsWorkspace",
         "virtualNetwork"
       ]
