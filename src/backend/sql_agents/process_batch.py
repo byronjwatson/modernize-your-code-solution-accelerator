@@ -49,6 +49,9 @@ async def process_batch_async(
         await batch_service.update_batch(batch_id, ProcessStatus.IN_PROGRESS)
     except Exception as exc:
         logger.error("Error updating batch status", batch_id=batch_id, error=str(exc))
+        # Mark batch as failed and stop further processing if initialization fails
+        await batch_service.update_batch(batch_id, ProcessStatus.FAILED)
+        return
 
     # Get the global SQL agents instance
     sql_agents = get_sql_agents()
