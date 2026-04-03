@@ -91,6 +91,7 @@ async def start_processing(request: Request):
       500:
         description: Internal server error
     """
+    batch_id = None
     try:
         payload = await request.json()
         batch_id = payload.get("batch_id")
@@ -113,7 +114,10 @@ async def start_processing(request: Request):
             "message": "Files processed",
         }
     except Exception as e:
-        track_event_if_configured("ProcessingFailed", {"batch_id": batch_id, "error": str(e)})
+        event_data = {"error": str(e)}
+        if batch_id is not None:
+            event_data["batch_id"] = batch_id
+        track_event_if_configured("ProcessingFailed", event_data)
         record_exception_to_trace(e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
