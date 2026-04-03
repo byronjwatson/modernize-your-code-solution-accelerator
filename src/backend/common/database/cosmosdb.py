@@ -95,13 +95,18 @@ class CosmosDBClient(DatabaseBase):
                             item=str(batch_id), partition_key=str(batch_id)
                         )
                         if batchexists.get("user_id") != user_id:
+                            self.logger.error("Batch belongs to a different user", batch_id=str(batch_id), existing_user=batchexists.get("user_id"), requesting_user=user_id)
                             raise ValueError("Batch belongs to a different user")
-                        return batchexists
+                        self.logger.info("Returning existing batch record", batch_id=str(batch_id))
+                        return BatchRecord.fromdb(batchexists)
                     except CosmosResourceNotFoundError:
                         if attempt < 2:
+                            self.logger.info("Batch read returned 404 after conflict, retrying", batch_id=str(batch_id), attempt=attempt + 1)
                             await asyncio.sleep(0.5 * (attempt + 1))
                         else:
-                            return batch
+                            raise RuntimeError(
+                                f"Batch {batch_id} already exists but could not be read after retries"
+                            )
 
         except Exception as e:
             self.logger.error("Failed to create batch", error=str(e))

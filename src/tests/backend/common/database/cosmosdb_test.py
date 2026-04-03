@@ -179,9 +179,9 @@ async def test_create_batch_exists(cosmos_db_client, mocker):
     batch = await cosmos_db_client.create_batch(user_id, batch_id)
 
     # Assert that batch was fetched (not created) due to already existing
-    assert batch["batch_id"] == str(batch_id)
-    assert batch["user_id"] == user_id
-    assert batch["status"] == ProcessStatus.READY_TO_PROCESS
+    assert batch.batch_id == batch_id
+    assert batch.user_id == user_id
+    assert batch.status == ProcessStatus.READY_TO_PROCESS
 
     mock_batch_container.read_item.assert_called_once_with(
         item=str(batch_id), partition_key=str(batch_id)
