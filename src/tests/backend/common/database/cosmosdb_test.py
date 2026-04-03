@@ -407,7 +407,7 @@ async def test_get_batch(cosmos_db_client, mocker):
     }
 
     # We define the async generator function that will yield the expected batch
-    async def mock_query_items(query, parameters):
+    async def mock_query_items(query, parameters, **kwargs):
         yield expected_batch
 
     # Assign the async generator to query_items mock
@@ -425,6 +425,7 @@ async def test_get_batch(cosmos_db_client, mocker):
             {"name": "@batch_id", "value": batch_id},
             {"name": "@user_id", "value": user_id},
         ],
+        partition_key=batch_id,
     )
 
 
@@ -471,8 +472,8 @@ async def test_get_file(cosmos_db_client, mocker):
         "blob_path": "/path/to/file"
     }
 
-    # We define the async generator function that will yield the expected batch
-    async def mock_query_items(query, parameters):
+    # We define the async generator function that will yield the expected file
+    async def mock_query_items(query, parameters, **kwargs):
         yield expected_file
 
     # Assign the async generator to query_items mock
@@ -597,7 +598,7 @@ async def test_get_batch_from_id(cosmos_db_client, mocker):
     }
 
     # Define the async generator function that will yield the expected batch
-    async def mock_query_items(query, parameters):
+    async def mock_query_items(query, parameters, **kwargs):
         yield expected_batch
 
     # Assign the async generator to query_items mock
