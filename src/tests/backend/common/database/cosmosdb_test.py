@@ -158,31 +158,34 @@ async def test_create_batch_exists(cosmos_db_client, mocker):
     user_id = "user_1"
     batch_id = uuid4()
 
-    # Mock container creation and get_batch
+    # Mock container creation and read_item
     mock_batch_container = mock.MagicMock()
     mocker.patch.object(cosmos_db_client, 'batch_container', mock_batch_container)
     mock_batch_container.create_item = AsyncMock(side_effect=CosmosResourceExistsError)
 
-    # Mock the get_batch method
-    mock_get_batch = AsyncMock(return_value=BatchRecord(
-        batch_id=batch_id,
-        user_id=user_id,
-        file_count=0,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-        status=ProcessStatus.READY_TO_PROCESS
-    ))
-    mocker.patch.object(cosmos_db_client, 'get_batch', mock_get_batch)
+    # Mock read_item to return the existing batch record
+    existing_batch = {
+        "id": str(batch_id),
+        "batch_id": str(batch_id),
+        "user_id": user_id,
+        "file_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "status": ProcessStatus.READY_TO_PROCESS,
+    }
+    mock_batch_container.read_item = AsyncMock(return_value=existing_batch)
 
     # Call the method
     batch = await cosmos_db_client.create_batch(user_id, batch_id)
 
     # Assert that batch was fetched (not created) due to already existing
-    assert batch.batch_id == batch_id
-    assert batch.user_id == user_id
-    assert batch.status == ProcessStatus.READY_TO_PROCESS
+    assert batch["batch_id"] == str(batch_id)
+    assert batch["user_id"] == user_id
+    assert batch["status"] == ProcessStatus.READY_TO_PROCESS
 
-    mock_get_batch.assert_called_once_with(user_id, str(batch_id))
+    mock_batch_container.read_item.assert_called_once_with(
+        item=str(batch_id), partition_key=str(batch_id)
+    )
 
 
 @pytest.mark.asyncio
