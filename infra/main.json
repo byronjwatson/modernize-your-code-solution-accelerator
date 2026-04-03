@@ -6,10 +6,10 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "9733680305260753032"
+      "templateHash": "18262017557117529046"
     },
     "name": "Modernize Your Code Solution Accelerator",
-    "description": "CSA CTO Gold Standard Solution Accelerator for Modernize Your Code. \n"
+    "description": "CSA CTO Gold Standard Solution Accelerator for Modernize Your Code. \r\n"
   },
   "parameters": {
     "solutionName": {
@@ -12902,11 +12902,11 @@
       },
       "dependsOn": [
         "applicationInsights",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').ods)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').agentSvc)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').oms)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').monitor)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').ods)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').agentSvc)]",
         "dataCollectionEndpoint",
         "logAnalyticsWorkspace",
         "virtualNetwork"
@@ -16625,13 +16625,13 @@
             "value": "Windows"
           },
           "vmSize": {
-            "value": "[coalesce(parameters('vmSize'), 'Standard_D2s_v3')]"
+            "value": "[if(not(empty(parameters('vmSize'))), parameters('vmSize'), 'Standard_D2s_v5')]"
           },
           "adminUsername": {
-            "value": "[coalesce(parameters('vmAdminUsername'), 'JumpboxAdminUser')]"
+            "value": "[if(not(empty(parameters('vmAdminUsername'))), parameters('vmAdminUsername'), 'JumpboxAdminUser')]"
           },
           "adminPassword": {
-            "value": "[coalesce(parameters('vmAdminPassword'), 'JumpboxAdminP@ssw0rd1234!')]"
+            "value": "[if(not(empty(parameters('vmAdminPassword'))), parameters('vmAdminPassword'), 'JumpboxAdminP@ssw0rd1234!')]"
           },
           "managedIdentities": {
             "value": {
@@ -31929,9 +31929,9 @@
       },
       "dependsOn": [
         "aiServices",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').openAI)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').cognitiveServices)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').openAI)]",
         "virtualNetwork"
       ]
     },
@@ -40182,8 +40182,8 @@
       },
       "dependsOn": [
         "appIdentity",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageFile)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
         "logAnalyticsWorkspace",
         "virtualNetwork"
       ]

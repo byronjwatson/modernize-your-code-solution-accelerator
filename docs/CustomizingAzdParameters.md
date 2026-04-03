@@ -17,7 +17,7 @@ By default this template will use the environment name as the prefix to prevent 
 | `AZURE_ENV_MODEL_CAPACITY`             | integer | `150`            | Set the Model Capacity (choose a number based on available GPT model capacity in your subscription). |
 | `AZURE_ENV_LOG_ANALYTICS_WORKSPACE_ID` | string  | Guide to get your [Existing Workspace ID](/docs/re-use-log-analytics.md)     | Set this if you want to reuse an existing Log Analytics Workspace instead of creating a new one.     |
 | `AZURE_ENV_IMAGETAG`                   | string  | `latest`         | Set the Image tag Like (allowed values: latest, dev, hotfix)    |
-| `AZURE_ENV_JUMPBOX_SIZE`                   | string  | `Standard_DS2_v2`         | Specifies the size of the Jumpbox Virtual Machine. Set a custom value if `enablePrivateNetworking` is `true`.    |
+| `AZURE_ENV_VM_SIZE`                   | string  | `Standard_D2s_v5`         | Specifies the size of the Jumpbox Virtual Machine (e.g., `Standard_D2s_v5`, `Standard_D2s_v4`). Set a custom value if `enablePrivateNetworking` is `true`.    |
 | `AZURE_ENV_JUMPBOX_ADMIN_USERNAME`     | string  | `JumpboxAdminUser`          | Specifies the administrator username for the Jumpbox Virtual Machine.      |
 | `AZURE_ENV_JUMPBOX_ADMIN_PASSWORD`     | string  | `JumpboxAdminP@ssw0rd1234!` | Specifies the administrator password for the Jumpbox Virtual Machine.      |
 | `AZURE_ENV_COSMOS_SECONDARY_LOCATION`  | string  | *(not set by default)*      | Specifies the secondary region for Cosmos DB. Required if `enableRedundancy` is `true`. |

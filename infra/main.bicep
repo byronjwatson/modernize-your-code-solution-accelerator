@@ -637,9 +637,9 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.20.0' = if (e
     enableTelemetry: enableTelemetry
     computerName: take(virtualMachineResourceName, 15)
     osType: 'Windows'
-    vmSize: vmSize ?? 'Standard_D2s_v3'
-    adminUsername: vmAdminUsername ?? 'JumpboxAdminUser'
-    adminPassword: vmAdminPassword ?? 'JumpboxAdminP@ssw0rd1234!'
+    vmSize: !empty(vmSize) ? vmSize : 'Standard_D2s_v5'
+    adminUsername: !empty(vmAdminUsername) ? vmAdminUsername : 'JumpboxAdminUser'
+    adminPassword: !empty(vmAdminPassword) ? vmAdminPassword : 'JumpboxAdminP@ssw0rd1234!'
     managedIdentities: {
       systemAssigned: true
     }
