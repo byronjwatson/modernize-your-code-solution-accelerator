@@ -80,7 +80,8 @@ def parse_bicep_params(bicep_path: Path) -> list[BicepParam]:
 
 def parse_parameters_json(json_path: Path) -> list[str]:
     """Return the raw parameter key names (preserving whitespace) from a
-    parameters JSON file."""
+    parameters JSON file.
+    """
     text = json_path.read_text(encoding="utf-8-sig")
     # azd parameter files may include ${VAR} or ${VAR=default} placeholders inside
     # string values. These are valid JSON strings, but we sanitize them so that
@@ -97,7 +98,8 @@ def parse_parameters_json(json_path: Path) -> list[str]:
 
 def parse_parameters_env_vars(json_path: Path) -> dict[str, list[str]]:
     """Return a mapping of parameter name → list of azd env var names
-    referenced in its value (e.g. ``${AZURE_ENV_NAME}``)."""
+    referenced in its value (e.g. ``${AZURE_ENV_NAME}``).
+    """
     text = json_path.read_text(encoding="utf-8-sig")
     result: dict[str, list[str]] = {}
     params = {}
