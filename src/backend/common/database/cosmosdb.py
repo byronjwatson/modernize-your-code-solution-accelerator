@@ -95,8 +95,8 @@ class CosmosDBClient(DatabaseBase):
                             item=str(batch_id), partition_key=str(batch_id)
                         )
                         if batchexists.get("user_id") != user_id:
-                            self.logger.error("Batch belongs to a different user", batch_id=str(batch_id), existing_user=batchexists.get("user_id"), requesting_user=user_id)
-                            raise ValueError("Batch belongs to a different user")
+                            self.logger.error("Batch belongs to a different user", batch_id=str(batch_id))
+                            raise CosmosResourceNotFoundError(message="Batch not found")
                         self.logger.info("Returning existing batch record", batch_id=str(batch_id))
                         return BatchRecord.fromdb(batchexists)
                     except CosmosResourceNotFoundError:
