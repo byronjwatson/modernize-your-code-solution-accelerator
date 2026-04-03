@@ -288,7 +288,8 @@ class BatchService:
 
             # Create file entry
             file_record_obj = await self.database.add_file(batch_id, file_id, file.filename, blob_path)
-            file_record = file_record_obj.dict() if hasattr(file_record_obj, 'dict') else file_record_obj
+            file_record_dict = getattr(file_record_obj, "dict", None)
+            file_record = file_record_dict() if callable(file_record_dict) else file_record_obj
 
             await self.database.add_file_log(
                 UUID(file_id),

@@ -9,15 +9,21 @@ from common.logger.app_logger import AppLogger
 
 class DatabaseFactory:
     _instance: Optional[DatabaseBase] = None
-    _lock: asyncio.Lock = asyncio.Lock()
+    _lock: Optional[asyncio.Lock] = None
     _logger = AppLogger("DatabaseFactory")
+
+    @staticmethod
+    def _get_lock() -> asyncio.Lock:
+        if DatabaseFactory._lock is None:
+            DatabaseFactory._lock = asyncio.Lock()
+        return DatabaseFactory._lock
 
     @staticmethod
     async def get_database():
         if DatabaseFactory._instance is not None:
             return DatabaseFactory._instance
 
-        async with DatabaseFactory._lock:
+        async with DatabaseFactory._get_lock():
             # Double-check after acquiring the lock
             if DatabaseFactory._instance is not None:
                 return DatabaseFactory._instance
