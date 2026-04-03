@@ -38,14 +38,14 @@
     "azureAiServiceLocation": {
       "value": "${AZURE_ENV_AI_SERVICE_LOCATION}"
     },
-    "vmSize": {
-      "value": "${AZURE_ENV_JUMPBOX_SIZE}"
-    },
     "vmAdminUsername": {
       "value": "${AZURE_ENV_JUMPBOX_ADMIN_USERNAME}"
     },
     "vmAdminPassword": {
       "value": "${AZURE_ENV_JUMPBOX_ADMIN_PASSWORD}"
+    },
+    "vmSize": {
+      "value": "${AZURE_ENV_VM_SIZE}"
     },
     "backendExists": {
       "value": "${SERVICE_BACKEND_RESOURCE_EXISTS=false}"
