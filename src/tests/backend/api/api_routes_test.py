@@ -138,6 +138,22 @@ class TestStartProcessing:
                 await start_processing(mock_request)
             assert exc_info.value.status_code == 500
 
+    @pytest.mark.asyncio
+    async def test_start_processing_json_parse_error(self, mock_track_event):
+        """Test processing start when request.json() raises before batch_id is assigned."""
+        mock_request = AsyncMock()
+        mock_request.json = AsyncMock(side_effect=Exception("Invalid JSON"))
+
+        with patch("backend.api.api_routes.record_exception_to_trace"):
+            with pytest.raises(HTTPException) as exc_info:
+                await start_processing(mock_request)
+            assert exc_info.value.status_code == 500
+            # batch_id should not be in the telemetry event data when it was never assigned
+            called_args = mock_track_event.call_args
+            assert called_args is not None
+            event_data = called_args[0][1]
+            assert "batch_id" not in event_data
+
 
 class TestDownloadFiles:
     """Tests for download_files endpoint."""
