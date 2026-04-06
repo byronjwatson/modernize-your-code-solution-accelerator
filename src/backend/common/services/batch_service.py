@@ -288,8 +288,9 @@ class BatchService:
             self.logger.info("File uploaded to blob storage", filename=file.filename, batch_id=batch_id)
 
             # Create file entry
-            await self.database.add_file(batch_id, file_id, file.filename, blob_path)
-            file_record = await self.database.get_file(file_id)
+            file_record_obj = await self.database.add_file(batch_id, file_id, file.filename, blob_path)
+            file_record_dict = getattr(file_record_obj, "dict", None)
+            file_record = file_record_dict() if callable(file_record_dict) else file_record_obj
 
             await self.database.add_file_log(
                 UUID(file_id),
@@ -308,6 +309,7 @@ class BatchService:
                     user_id,
                     ProcessStatus.READY_TO_PROCESS,
                     batch["file_count"],
+                    existing_batch=batch,
                 )
                 # Return response
                 return {"batch": batch, "file": file_record}
@@ -318,7 +320,8 @@ class BatchService:
                 batch.file_count = len(files)
                 batch.updated_at = datetime.utcnow().isoformat()
                 await self.database.update_batch_entry(
-                    batch_id, user_id, ProcessStatus.READY_TO_PROCESS, batch.file_count
+                    batch_id, user_id, ProcessStatus.READY_TO_PROCESS, batch.file_count,
+                    existing_batch=batch.dict(),
                 )
                 # Return response
                 return {"batch": batch, "file": file_record}

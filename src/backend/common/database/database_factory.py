@@ -9,25 +9,40 @@ from common.logger.app_logger import AppLogger
 
 class DatabaseFactory:
     _instance: Optional[DatabaseBase] = None
+    _lock: Optional[asyncio.Lock] = None
     _logger = AppLogger("DatabaseFactory")
 
     @staticmethod
+    def _get_lock() -> asyncio.Lock:
+        if DatabaseFactory._lock is None:
+            DatabaseFactory._lock = asyncio.Lock()
+        return DatabaseFactory._lock
+
+    @staticmethod
     async def get_database():
+        if DatabaseFactory._instance is not None:
+            return DatabaseFactory._instance
 
-        config = Config()  # Create an instance of Config
+        async with DatabaseFactory._get_lock():
+            # Double-check after acquiring the lock
+            if DatabaseFactory._instance is not None:
+                return DatabaseFactory._instance
 
-        cosmos_db_client = CosmosDBClient(
-            endpoint=config.cosmosdb_endpoint,
-            credential=config.get_azure_credentials(),
-            database_name=config.cosmosdb_database,
-            batch_container=config.cosmosdb_batch_container,
-            file_container=config.cosmosdb_file_container,
-            log_container=config.cosmosdb_log_container,
-        )
+            config = Config()  # Create an instance of Config
 
-        await cosmos_db_client.initialize_cosmos()
+            cosmos_db_client = CosmosDBClient(
+                endpoint=config.cosmosdb_endpoint,
+                credential=config.get_azure_credentials(),
+                database_name=config.cosmosdb_database,
+                batch_container=config.cosmosdb_batch_container,
+                file_container=config.cosmosdb_file_container,
+                log_container=config.cosmosdb_log_container,
+            )
 
-        return cosmos_db_client
+            await cosmos_db_client.initialize_cosmos()
+
+            DatabaseFactory._instance = cosmos_db_client
+            return cosmos_db_client
 
 
 # Local testing of config and code
