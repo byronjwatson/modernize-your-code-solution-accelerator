@@ -1052,16 +1052,16 @@ useEffect(() => {
         updateSummaryStatus();
       }
       
-      // Ultimate fallback: If on page for 2+ minutes with no completion, check batch status instead of force-navigating
+      // Ultimate fallback: If on page for 2+ minutes with no completion, force navigation
       const timeSincePageLoad = Date.now() - pageLoadTime;
       if (timeSincePageLoad > 120000 && !allFilesCompleted && nonSummaryFiles.length > 0) {
-        console.log("Page loaded for 2+ minutes without completion, checking batch status");
-        updateSummaryStatus();
+        console.log("Page loaded for 2+ minutes without completion, forcing navigation to batch view");
+        navigate(`/batch-view/${batchId}`);
       }
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(checkInactivity);
-  }, [lastActivityTime, files, allFilesCompleted, updateSummaryStatus, pageLoadTime, batchId]);
+  }, [lastActivityTime, files, allFilesCompleted, updateSummaryStatus, pageLoadTime, navigate, batchId]);
 
 
   useEffect(() => {
