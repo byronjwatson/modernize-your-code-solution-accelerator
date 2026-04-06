@@ -10,7 +10,7 @@ on:
       - demo
     paths:
       - 'src/backend/**/*.py'
-      - 'src/tests/backend/**'
+      - 'src/tests/**'
       - '.github/workflows/test.yml'
       - 'src/backend/requirements.txt'
       - 'src/frontend/requirements.txt'
@@ -27,7 +27,7 @@ on:
       - demo
     paths:
       - 'src/backend/**/*.py'
-      - 'src/tests/backend/**'
+      - 'src/tests/**'
       - '.github/workflows/test.yml'
       - 'src/backend/requirements.txt'
       - 'src/frontend/requirements.txt'
