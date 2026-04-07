@@ -285,6 +285,7 @@ class BatchService:
                 content_type=file.content_type,
                 metadata={"batch_id": batch_id, "user_id": user_id, "file_id": file_id},
             )
+            self.logger.info("File uploaded to blob storage", filename=file.filename, batch_id=batch_id)
 
             # Create file entry
             file_record_obj = await self.database.add_file(batch_id, file_id, file.filename, blob_path)
@@ -373,6 +374,7 @@ class BatchService:
                 # Delete file and log entry from database
                 await self.database.delete_file(user_id, str(file_record.file_id))
             await self.database.delete_batch(user_id, batch_id)
+            self.logger.info("Batch and all files deleted successfully", batch_id=batch_id)
             return {"message": "Files deleted successfully"}
 
         except (RuntimeError, ValueError, IOError) as e:
@@ -432,6 +434,7 @@ class BatchService:
         batch_record.status = status
         batch_record.updated_at = datetime.utcnow()
         await self.database.update_batch(batch_record)
+        self.logger.info("Batch status updated", batch_id=batch_id, status=status.value)
 
     async def create_candidate(self, file_id: str, candidate: str):
         """Create a new candidate entry in the database and upload the candita file to storage."""
