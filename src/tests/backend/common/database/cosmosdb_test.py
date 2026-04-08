@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock  # noqa: E402
 from uuid import uuid4  # noqa: E402
 
 from azure.cosmos.aio import CosmosClient  # noqa: E402
-from azure.cosmos.exceptions import CosmosResourceExistsError  # noqa: E402
+from azure.cosmos.exceptions import CosmosResourceExistsError, CosmosResourceNotFoundError  # noqa: E402
 
 from common.database.cosmosdb import (  # noqa: E402
     CosmosDBClient,
@@ -186,6 +186,84 @@ async def test_create_batch_exists(cosmos_db_client, mocker):
     mock_batch_container.read_item.assert_called_once_with(
         item=str(batch_id), partition_key=str(batch_id)
     )
+
+
+@pytest.mark.asyncio
+async def test_create_batch_conflict_retry_on_404(cosmos_db_client, mocker):
+    """Test that read_item is retried when it returns 404 after a 409 conflict."""
+    user_id = "user_1"
+    batch_id = uuid4()
+
+    mock_batch_container = mock.MagicMock()
+    mocker.patch.object(cosmos_db_client, 'batch_container', mock_batch_container)
+    mock_batch_container.create_item = AsyncMock(side_effect=CosmosResourceExistsError)
+
+    existing_batch = {
+        "id": str(batch_id),
+        "batch_id": str(batch_id),
+        "user_id": user_id,
+        "file_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "status": ProcessStatus.READY_TO_PROCESS,
+    }
+
+    # First call raises 404, second call succeeds
+    mock_batch_container.read_item = AsyncMock(
+        side_effect=[CosmosResourceNotFoundError(message="Not found"), existing_batch]
+    )
+
+    batch = await cosmos_db_client.create_batch(user_id, batch_id)
+
+    assert batch.batch_id == batch_id
+    assert batch.user_id == user_id
+    assert mock_batch_container.read_item.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_create_batch_conflict_cross_user(cosmos_db_client, mocker):
+    """Test that a PermissionError is raised when the batch belongs to a different user."""
+    user_id = "user_1"
+    batch_id = uuid4()
+
+    mock_batch_container = mock.MagicMock()
+    mocker.patch.object(cosmos_db_client, 'batch_container', mock_batch_container)
+    mock_batch_container.create_item = AsyncMock(side_effect=CosmosResourceExistsError)
+
+    existing_batch = {
+        "id": str(batch_id),
+        "batch_id": str(batch_id),
+        "user_id": "different_user",
+        "file_count": 0,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "status": ProcessStatus.READY_TO_PROCESS,
+    }
+    mock_batch_container.read_item = AsyncMock(return_value=existing_batch)
+
+    with pytest.raises(PermissionError, match="Batch not found"):
+        await cosmos_db_client.create_batch(user_id, batch_id)
+
+
+@pytest.mark.asyncio
+async def test_create_batch_conflict_exhausted_retries(cosmos_db_client, mocker):
+    """Test that RuntimeError is raised when read_item returns 404 after all retries."""
+    user_id = "user_1"
+    batch_id = uuid4()
+
+    mock_batch_container = mock.MagicMock()
+    mocker.patch.object(cosmos_db_client, 'batch_container', mock_batch_container)
+    mock_batch_container.create_item = AsyncMock(side_effect=CosmosResourceExistsError)
+
+    # All 3 attempts raise 404
+    mock_batch_container.read_item = AsyncMock(
+        side_effect=CosmosResourceNotFoundError(message="Not found")
+    )
+
+    with pytest.raises(RuntimeError, match="already exists but could not be read after retries"):
+        await cosmos_db_client.create_batch(user_id, batch_id)
+
+    assert mock_batch_container.read_item.call_count == 3
 
 
 @pytest.mark.asyncio
@@ -487,6 +565,8 @@ async def test_get_file(cosmos_db_client, mocker):
     assert file["status"] == ProcessStatus.READY_TO_PROCESS
 
     mock_file_container.query_items.assert_called_once()
+    call_kwargs = mock_file_container.query_items.call_args
+    assert call_kwargs.kwargs.get("partition_key") == file_id
 
 
 @pytest.mark.asyncio
@@ -612,6 +692,8 @@ async def test_get_batch_from_id(cosmos_db_client, mocker):
     assert batch["status"] == ProcessStatus.READY_TO_PROCESS
 
     mock_batch_container.query_items.assert_called_once()
+    call_kwargs = mock_batch_container.query_items.call_args
+    assert call_kwargs.kwargs.get("partition_key") == batch_id
 
 
 @pytest.mark.asyncio

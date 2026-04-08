@@ -288,7 +288,7 @@ class BatchService:
             self.logger.info("File uploaded to blob storage", filename=file.filename, batch_id=batch_id)
 
             # Create file entry
-            file_record_obj = await self.database.add_file(batch_id, file_id, file.filename, blob_path)
+            file_record_obj = await self.database.add_file(UUID(batch_id), UUID(file_id), file.filename, blob_path)
             file_record_dict = getattr(file_record_obj, "dict", None)
             file_record = file_record_dict() if callable(file_record_dict) else file_record_obj
 
