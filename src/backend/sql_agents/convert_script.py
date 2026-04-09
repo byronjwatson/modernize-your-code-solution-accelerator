@@ -101,6 +101,7 @@ async def convert_script(
                                         AuthorRole(response.role),
                                     )
                                     current_migration = None
+                                    is_complete = True
                                     break
                             case AgentType.SYNTAX_CHECKER.value:
                                 result = SyntaxCheckerResponse.model_validate_json(
@@ -271,12 +272,11 @@ async def convert_script(
                         FileResult.ERROR,
                     ),
                 )
+                is_complete = True
                 break
 
             if comms_manager.group_chat.is_complete:
                 is_complete = True
-
-            break
 
         migrated_query = current_migration
 
