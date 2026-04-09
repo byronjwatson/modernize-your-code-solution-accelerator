@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
 from uuid import UUID, uuid4
@@ -5,7 +6,8 @@ from uuid import UUID, uuid4
 from azure.cosmos.aio import CosmosClient
 from azure.cosmos.aio._database import DatabaseProxy
 from azure.cosmos.exceptions import (
-    CosmosResourceExistsError
+    CosmosResourceExistsError,
+    CosmosResourceNotFoundError,
 )
 
 from common.database.database_base import DatabaseBase
@@ -85,9 +87,28 @@ class CosmosDBClient(DatabaseBase):
                 await self.batch_container.create_item(body=batch.dict())
                 return batch
             except CosmosResourceExistsError:
-                self.logger.info(f"Batch with ID {batch_id} already exists")
-                batchexists = await self.get_batch(user_id, str(batch_id))
-                return batchexists
+                self.logger.info("Batch already exists, reading existing record", batch_id=str(batch_id))
+                # Retry read with backoff to handle replication lag after 409 conflict
+                for attempt in range(3):
+                    try:
+                        batchexists = await self.batch_container.read_item(
+                            item=str(batch_id), partition_key=str(batch_id)
+                        )
+                    except CosmosResourceNotFoundError:
+                        if attempt < 2:
+                            self.logger.info("Batch read returned 404 after conflict, retrying", batch_id=str(batch_id), attempt=attempt + 1)
+                            await asyncio.sleep(0.5 * (attempt + 1))
+                            continue
+                        raise RuntimeError(
+                            f"Batch {batch_id} already exists but could not be read after retries"
+                        )
+
+                    if batchexists.get("user_id") != user_id:
+                        self.logger.error("Batch belongs to a different user", batch_id=str(batch_id))
+                        raise PermissionError("Batch not found")
+
+                    self.logger.info("Returning existing batch record", batch_id=str(batch_id))
+                    return BatchRecord.fromdb(batchexists)
 
         except Exception as e:
             self.logger.error("Failed to create batch", error=str(e))
@@ -158,7 +179,7 @@ class CosmosDBClient(DatabaseBase):
             ]
             batch = None
             async for item in self.batch_container.query_items(
-                query=query, parameters=params
+                query=query, parameters=params, partition_key=batch_id
             ):
                 batch = item
 
@@ -173,7 +194,7 @@ class CosmosDBClient(DatabaseBase):
             params = [{"name": "@file_id", "value": file_id}]
             file_entry = None
             async for item in self.file_container.query_items(
-                query=query, parameters=params
+                query=query, parameters=params, partition_key=file_id
             ):
                 file_entry = item
             return file_entry
@@ -209,7 +230,7 @@ class CosmosDBClient(DatabaseBase):
 
             batch = None  # Store the batch
             async for item in self.batch_container.query_items(
-                query=query, parameters=params
+                query=query, parameters=params, partition_key=batch_id
             ):
                 batch = item  # Assign the batch to the variable
 
@@ -335,11 +356,14 @@ class CosmosDBClient(DatabaseBase):
             raise
 
     async def update_batch_entry(
-        self, batch_id: str, user_id: str, status: ProcessStatus, file_count: int
+        self, batch_id: str, user_id: str, status: ProcessStatus, file_count: int,
+        existing_batch: Optional[Dict] = None
     ):
-        """Update batch status."""
+        """Update batch status. If existing_batch is provided, skip the re-fetch."""
         try:
-            batch = await self.get_batch(user_id, batch_id)
+            batch = existing_batch
+            if batch is None:
+                batch = await self.get_batch(user_id, batch_id)
             if not batch:
                 raise ValueError("Batch not found")
 
