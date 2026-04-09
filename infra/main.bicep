@@ -118,6 +118,9 @@ param existingFoundryProjectResourceId string = ''
 @description('Optional. Use this parameter to use an existing Log Analytics workspace resource ID. Defaults to empty string.')
 param existingLogAnalyticsWorkspaceId string = ''
 
+@description('Optional. AI model deployments array for quota validation scripts. Not used directly by the template.')
+param aiModelDeployments array = []
+
 var existingTags = resourceGroup().tags ?? {}
 
 var allTags = union(
