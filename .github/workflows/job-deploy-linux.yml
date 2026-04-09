@@ -240,7 +240,7 @@ jobs:
           azd env set AZURE_ENV_AI_SERVICE_LOCATION="$INPUT_AZURE_ENV_OPENAI_LOCATION"
           azd env set AZURE_LOCATION="$INPUT_AZURE_LOCATION"
           azd env set AZURE_RESOURCE_GROUP="$INPUT_RESOURCE_GROUP_NAME"
-          azd env set AZURE_ENV_IMAGETAG="$INPUT_IMAGE_TAG"
+          azd env set AZURE_ENV_IMAGE_TAG="$INPUT_IMAGE_TAG"
           
           if [[ "$INPUT_BUILD_DOCKER_IMAGE" == "true" ]]; then
             ACR_NAME="${{ secrets.ACR_TEST_LOGIN_SERVER }}"
@@ -256,13 +256,13 @@ jobs:
             if [[ -n "$INPUT_AZURE_ENV_EXISTING_LOG_ANALYTICS_WORKSPACE_RID" ]]; then
               EXP_LOG_ANALYTICS_ID="$INPUT_AZURE_ENV_EXISTING_LOG_ANALYTICS_WORKSPACE_RID"
             else
-              EXP_LOG_ANALYTICS_ID="${{ vars.AZURE_ENV_LOG_ANALYTICS_WORKSPACE_ID }}"
+              EXP_LOG_ANALYTICS_ID="${{ vars.AZURE_ENV_EXISTING_LOG_ANALYTICS_WORKSPACE_RID }}"
             fi
             
             if [[ -n "$INPUT_AZURE_EXISTING_AIPROJECT_RESOURCE_ID" ]]; then
               EXP_AI_PROJECT_ID="$INPUT_AZURE_EXISTING_AIPROJECT_RESOURCE_ID"
             else
-              EXP_AI_PROJECT_ID="${{ vars.AZURE_EXISTING_AI_PROJECT_RESOURCE_ID }}"
+              EXP_AI_PROJECT_ID="${{ vars.AZURE_EXISTING_AIPROJECT_RESOURCE_ID }}"
             fi
             
             echo "AZURE_ENV_EXISTING_LOG_ANALYTICS_WORKSPACE_RID: $EXP_LOG_ANALYTICS_ID"

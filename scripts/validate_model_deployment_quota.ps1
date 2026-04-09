@@ -77,10 +77,10 @@ Write-Host "🎯 Active Subscription: $(az account show --query '[name, id]' --o
 $QuotaAvailable = $true
 
 foreach ($deployment in $aiModelDeployments) {
-    $name = if ($env:AZURE_ENV_MODEL_NAME) { $env:AZURE_ENV_MODEL_NAME } else { $deployment.name }
-    $model = if ($env:AZURE_ENV_MODEL_NAME) { $env:AZURE_ENV_MODEL_NAME } else { $deployment.model.name }
+    $name = if ($env:AZURE_ENV_GPT_MODEL_NAME) { $env:AZURE_ENV_GPT_MODEL_NAME } else { $deployment.name }
+    $model = if ($env:AZURE_ENV_GPT_MODEL_NAME) { $env:AZURE_ENV_GPT_MODEL_NAME } else { $deployment.model.name }
     $type = if ($env:AZURE_ENV_MODEL_DEPLOYMENT_TYPE) { $env:AZURE_ENV_MODEL_DEPLOYMENT_TYPE } else { $deployment.sku.name }
-    $capacity = if ($env:AZURE_ENV_MODEL_CAPACITY) { $env:AZURE_ENV_MODEL_CAPACITY } else { $deployment.sku.capacity }
+    $capacity = if ($env:AZURE_ENV_GPT_MODEL_CAPACITY) { $env:AZURE_ENV_GPT_MODEL_CAPACITY } else { $deployment.sku.capacity }
 
     Write-Host "`n🔍 Validating model deployment: $name ..."
     & .\scripts\validate_model_quota.ps1 -Location $Location -Model $model -Capacity $capacity -DeploymentType $type
