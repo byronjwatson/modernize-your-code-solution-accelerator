@@ -497,10 +497,11 @@ const ModernizationPage = () => {
   const [fileId, setFileId] = React.useState<string>("");
   const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
   const [allFilesCompleted, setAllFilesCompleted] = useState(false);
+  const [progressPercentage, setProgressPercentage] = useState(0);
   const [isZipButtonDisabled, setIsZipButtonDisabled] = useState(true);
   const [fileLoading, setFileLoading] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
-  const [pageLoadTime] = useState<number>(Date.now());
+  //const [pageLoadTime] = useState<number>(Date.now());
 
   // Fetch file content when a file is selected
   useEffect(() => {
@@ -514,18 +515,9 @@ const ModernizationPage = () => {
         if (!selectedFile || !selectedFile.translatedCode) {
           setFileLoading(true);
           const newFileUpdate = await fetchFileFromAPI(selectedFile?.fileId || "");
-          setFiles((prevFiles) =>
-            prevFiles.map((file) =>
-              file.fileId === selectedFile?.fileId
-                ? {
-                    ...file,
-                    code: newFileUpdate.content,
-                    translatedCode: newFileUpdate.translated_content,
-                  }
-                : file
-            )
-          );
           setFileLoading(false);
+        } else {
+
         }
 
       } catch (err) {
@@ -603,18 +595,9 @@ const ModernizationPage = () => {
     fetchBatchData(batchId);
   }, [batchId]);
 
-  // Listen for startProcessing completion and navigate to batch view
-  useEffect(() => {
-    if (batchState && !batchState.loading && batchState.status === "Processing completed") {
-      console.log("Start processing API completed successfully - processing is done!");
-      
-      // Check if we have the response with batch_id that matches current batchId
-      if (batchState.batchId === batchId) {
-        console.log("Processing completed for current batch, navigating to batch view page");
-        navigate(`/batch-view/${batchId}`);
-      }
-    }
-  }, [batchState.loading, batchState.status, batchState.batchId, batchId, navigate]);
+  // Do NOT navigate based on Redux startProcessing state.
+  // The start-processing API may return 504 even if backend work is ongoing.
+  // Navigation is ONLY triggered by actual file completion via WebSocket/polling.
 
   const handleDownloadZip = async () => {
     if (batchId) {
@@ -811,37 +794,17 @@ const ModernizationPage = () => {
       const latestBatch = await fetchBatchSummary(batchId!);
       setBatchSummary(latestBatch);
       
-      // Check if all files are in terminal states OR if the batch itself is marked as completed
+      // Only complete when all files reach terminal states.
       const allFilesDone = latestBatch.files.every(file =>
         ["completed", "failed", "error"].includes(file.status?.toLowerCase() || "")
       );
-      
-      // Also check if batch status indicates completion (for cases where some files remain queued)
-      const batchCompleted = latestBatch.status?.toLowerCase() === "completed" || 
-                            latestBatch.status?.toLowerCase() === "failed";
-      
-      // Special handling for stuck processing files - if no completed files and long time passed
-      const hasProcessingFiles = latestBatch.files.some(file => 
-        file.status?.toLowerCase() === "in_process"
-      );
-      const hasCompletedFiles = latestBatch.files.some(file => 
-        file.status?.toLowerCase() === "completed"
-      );
-      const timeSinceLastActivity = Date.now() - lastActivityTime;
-      const likelyStuckProcessing = hasProcessingFiles && 
-                                   !hasCompletedFiles && 
-                                   timeSinceLastActivity > 60000; // 60 seconds of no activity
-      
-      // Consider processing done if either all files are terminal OR batch is marked complete OR files appear stuck
-      const processingComplete = allFilesDone || batchCompleted || likelyStuckProcessing;
+
+      const processingComplete = allFilesDone;
   
       if (processingComplete) {
         console.log("Processing complete detected:", {
           allFilesDone,
-          batchCompleted,
-          likelyStuckProcessing,
-          batchStatus: latestBatch.status,
-          timeSinceActivity: timeSinceLastActivity
+          batchStatus: latestBatch.status
         });
         setAllFilesCompleted(true);
         const hasUsableFile = latestBatch.files.some(file =>
@@ -868,8 +831,8 @@ const ModernizationPage = () => {
           return updated;
         });
 
-        // Navigate to batch view page when processing is complete
-        console.log("Processing complete (either all files done or batch completed), navigating to batch view page");
+        // Navigate only after all files have reached terminal states.
+        console.log("Processing complete (all files done), navigating to batch view page");
         navigate(`/batch-view/${batchId}`);
       }
     } catch (err) {
@@ -950,17 +913,8 @@ useEffect(() => {
       file.id === "summary" || // skip summary
       ["completed", "failed", "error"].includes(file.status?.toLowerCase() || "")
     );
-    
-    // Also check if we have at least one completed file and no files currently processing
-    const hasCompletedFiles = files.some(file => 
-      file.id !== "summary" && file.status === "completed"
-    );
-    const hasProcessingFiles = files.some(file => 
-      file.id !== "summary" && file.status === "in_process"
-    );
-    
-    // Consider done if all terminal OR (has completed files and no processing files)
-    const effectivelyDone = areAllFilesTerminal || (hasCompletedFiles && !hasProcessingFiles);
+
+    const effectivelyDone = areAllFilesTerminal;
   
     if (files.length > 1 && effectivelyDone && !allFilesCompleted) {
       console.log("Files processing appears complete, checking batch status");
@@ -1013,55 +967,34 @@ useEffect(() => {
     };
   }, [handleWebSocketMessage]);
 
-  // Set a timeout for initial loading - if still loading after 30 seconds, show a warning message
+  // Set a timeout for initial loading - if no progress after 30 seconds, show error
   useEffect(() => {
     const loadingTimeout = setTimeout(() => {
-      if (showLoading) {
+      if (progressPercentage < 5 && showLoading) {
         setLoadingError('Processing is taking longer than expected. You can continue waiting or try again later.');
       }
     }, 30000);
 
     return () => clearTimeout(loadingTimeout);
-  }, [showLoading]);
+  }, [progressPercentage, showLoading]);
 
-  // Add timeout mechanism to navigate if no activity for 30 seconds
+  // Poll summary status during inactivity, but do not force completion/navigation by timeout.
   useEffect(() => {
     const checkInactivity = setInterval(() => {
       const timeSinceLastActivity = Date.now() - lastActivityTime;
       const hasCompletedFiles = files.some(file => 
         file.id !== "summary" && file.status === "completed"
       );
-      const hasProcessingFiles = files.some(file => 
-        file.id !== "summary" && file.status === "in_process"
-      );
-      const nonSummaryFiles = files.filter(f => f.id !== "summary");
       
-      // If we have completed files and no activity for 30 seconds, check if we should navigate
+      // If we have completed files and no activity for 30 seconds, refresh status.
       if (hasCompletedFiles && timeSinceLastActivity > 30000 && !allFilesCompleted) {
         console.log("No activity for 30 seconds with completed files, checking final status");
         updateSummaryStatus();
       }
-      
-      // Special case: If only harmful files that are stuck in processing for 60+ seconds
-      if (nonSummaryFiles.length > 0 && 
-          hasProcessingFiles && 
-          !hasCompletedFiles && 
-          timeSinceLastActivity > 60000 && 
-          !allFilesCompleted) {
-        console.log("Files stuck in processing for 60+ seconds, likely failed - checking batch status");
-        updateSummaryStatus();
-      }
-      
-      // Ultimate fallback: If on page for 2+ minutes with no completion, force navigation
-      const timeSincePageLoad = Date.now() - pageLoadTime;
-      if (timeSincePageLoad > 120000 && !allFilesCompleted && nonSummaryFiles.length > 0) {
-        console.log("Page loaded for 2+ minutes without completion, forcing navigation to batch view");
-        navigate(`/batch-view/${batchId}`);
-      }
     }, 5000); // Check every 5 seconds
 
     return () => clearInterval(checkInactivity);
-  }, [lastActivityTime, files, allFilesCompleted, updateSummaryStatus, pageLoadTime, navigate, batchId]);
+  }, [lastActivityTime, files, allFilesCompleted, updateSummaryStatus, navigate, batchId]);
 
 
   useEffect(() => {
