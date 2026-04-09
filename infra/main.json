@@ -5,8 +5,8 @@
   "metadata": {
     "_generator": {
       "name": "bicep",
-      "version": "0.42.1.51946",
-      "templateHash": "7222423000870488333"
+      "version": "0.40.2.10011",
+      "templateHash": "13589960712112840698"
     },
     "name": "Modernize Your Code Solution Accelerator",
     "description": "CSA CTO Gold Standard Solution Accelerator for Modernize Your Code. \r\n"
@@ -64,7 +64,7 @@
         "description": "Required. Location for all AI service resources. This location can be different from the resource group location."
       }
     },
-    "gptModelCapacity": {
+    "gptDeploymentCapacity": {
       "type": "int",
       "defaultValue": 150,
       "metadata": {
@@ -78,7 +78,7 @@
         "description": "Optional. Enable monitoring for the resources. This will enable Application Insights and Log Analytics. Defaults to false."
       }
     },
-    "enableScaling": {
+    "enableScalability": {
       "type": "bool",
       "defaultValue": false,
       "metadata": {
@@ -141,7 +141,7 @@
         "description": "Optional. Enable/Disable usage telemetry for module."
       }
     },
-    "gptModelDeploymentType": {
+    "deploymentType": {
       "type": "string",
       "defaultValue": "GlobalStandard",
       "minLength": 1,
@@ -157,7 +157,7 @@
         "description": "Optional. Name of the GPT model to deploy. Defaults to gpt-4o."
       }
     },
-    "imageVersion": {
+    "imageTag": {
       "type": "string",
       "defaultValue": "latest_2025-11-10_599",
       "minLength": 1,
@@ -165,11 +165,11 @@
         "description": "Optional. Set the Image tag. Defaults to latest_2025-11-10_599."
       }
     },
-    "acrName": {
+    "containerRegistryEndpoint": {
       "type": "string",
       "defaultValue": "cmsacontainerreg.azurecr.io",
       "metadata": {
-        "description": "Optional. Azure Container Registry name. Defaults to cmsacontainerreg.azurecr.io"
+        "description": "Optional. Azure Container Registry endpoint. Defaults to cmsacontainerreg.azurecr.io"
       }
     },
     "gptModelVersion": {
@@ -180,7 +180,7 @@
         "description": "Optional. Version of the GPT model to deploy. Defaults to 2024-08-06."
       }
     },
-    "azureExistingAIProjectResourceId": {
+    "existingFoundryProjectResourceId": {
       "type": "string",
       "defaultValue": "",
       "metadata": {
@@ -227,8 +227,8 @@
         "version": "[parameters('gptModelVersion')]"
       },
       "sku": {
-        "name": "[parameters('gptModelDeploymentType')]",
-        "capacity": "[parameters('gptModelCapacity')]"
+        "name": "[parameters('deploymentType')]",
+        "capacity": "[parameters('gptDeploymentCapacity')]"
       },
       "raiPolicyName": "Microsoft.Default"
     },
@@ -268,7 +268,7 @@
     "proximityPlacementGroupResourceName": "[format('ppg-{0}', variables('solutionSuffix'))]",
     "virtualMachineResourceName": "[take(format('vm-{0}', variables('solutionSuffix')), 15)]",
     "aiFoundryAiServicesResourceName": "[format('aif-{0}', variables('solutionSuffix'))]",
-    "useExistingAiFoundryAiProject": "[not(empty(parameters('azureExistingAIProjectResourceId')))]",
+    "useExistingAiFoundryAiProject": "[not(empty(parameters('existingFoundryProjectResourceId')))]",
     "appStorageContainerName": "appstorage",
     "containerAppsEnvironmentName": "[format('cae-{0}', variables('solutionSuffix'))]"
   },
@@ -5052,8 +5052,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.42.1.51946",
-              "templateHash": "3406526791248457038"
+              "version": "0.40.2.10011",
+              "templateHash": "4892991135758906801"
             }
           },
           "definitions": {
@@ -12895,10 +12895,10 @@
       },
       "dependsOn": [
         "applicationInsights",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').ods)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').monitor)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').oms)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').storageBlob)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').ods)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').agentSvc)]",
         "dataCollectionEndpoint",
         "logAnalyticsWorkspace",
@@ -25549,7 +25549,7 @@
             "value": null
           },
           "existingFoundryProjectResourceId": {
-            "value": "[parameters('azureExistingAIProjectResourceId')]"
+            "value": "[parameters('existingFoundryProjectResourceId')]"
           },
           "disableLocalAuth": {
             "value": true
@@ -25611,8 +25611,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.42.1.51946",
-              "templateHash": "16969185198334420434"
+              "version": "0.40.2.10011",
+              "templateHash": "665208465907096971"
             },
             "name": "AI Services and Project Module",
             "description": "This module creates an AI Services resource and an AI Foundry project within it. It supports private networking, OpenAI deployments, and role assignments."
@@ -26952,8 +26952,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.42.1.51946",
-                      "templateHash": "4140498216793917924"
+                      "version": "0.40.2.10011",
+                      "templateHash": "7604365129625921085"
                     }
                   },
                   "definitions": {
@@ -28667,8 +28667,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.42.1.51946",
-                              "templateHash": "2422737205646151487"
+                              "version": "0.40.2.10011",
+                              "templateHash": "14939823368517410024"
                             }
                           },
                           "definitions": {
@@ -28821,8 +28821,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.42.1.51946",
-                              "templateHash": "11911242767938607365"
+                              "version": "0.40.2.10011",
+                              "templateHash": "13151306134286549002"
                             }
                           },
                           "definitions": {
@@ -29039,8 +29039,8 @@
                   "metadata": {
                     "_generator": {
                       "name": "bicep",
-                      "version": "0.42.1.51946",
-                      "templateHash": "4140498216793917924"
+                      "version": "0.40.2.10011",
+                      "templateHash": "7604365129625921085"
                     }
                   },
                   "definitions": {
@@ -30754,8 +30754,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.42.1.51946",
-                              "templateHash": "2422737205646151487"
+                              "version": "0.40.2.10011",
+                              "templateHash": "14939823368517410024"
                             }
                           },
                           "definitions": {
@@ -30908,8 +30908,8 @@
                           "metadata": {
                             "_generator": {
                               "name": "bicep",
-                              "version": "0.42.1.51946",
-                              "templateHash": "11911242767938607365"
+                              "version": "0.40.2.10011",
+                              "templateHash": "13151306134286549002"
                             }
                           },
                           "definitions": {
@@ -31923,8 +31923,8 @@
       "dependsOn": [
         "aiServices",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').openAI)]",
-        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
         "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').cognitiveServices)]",
+        "[format('avmPrivateDnsZones[{0}]', variables('dnsZoneIndex').aiServices)]",
         "virtualNetwork"
       ]
     },
@@ -31980,8 +31980,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.42.1.51946",
-              "templateHash": "522477461329004641"
+              "version": "0.40.2.10011",
+              "templateHash": "9525047811797133596"
             }
           },
           "definitions": {
@@ -40225,8 +40225,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.42.1.51946",
-              "templateHash": "15355322017409205910"
+              "version": "0.40.2.10011",
+              "templateHash": "9495092499292590311"
             }
           },
           "definitions": {
@@ -44088,8 +44088,8 @@
           "metadata": {
             "_generator": {
               "name": "bicep",
-              "version": "0.42.1.51946",
-              "templateHash": "4242598725709304634"
+              "version": "0.40.2.10011",
+              "templateHash": "17583156542522410309"
             }
           },
           "definitions": {
@@ -51258,7 +51258,7 @@
             "value": [
               {
                 "name": "cmsabackend",
-                "image": "[format('{0}/cmsabackend:{1}', parameters('acrName'), parameters('imageVersion'))]",
+                "image": "[format('{0}/cmsabackend:{1}', parameters('containerRegistryEndpoint'), parameters('imageTag'))]",
                 "env": "[concat(createArray(createObject('name', 'COSMOSDB_ENDPOINT', 'value', reference('cosmosDb').outputs.endpoint.value), createObject('name', 'COSMOSDB_DATABASE', 'value', reference('cosmosDb').outputs.databaseName.value), createObject('name', 'COSMOSDB_BATCH_CONTAINER', 'value', reference('cosmosDb').outputs.containerNames.value.batch), createObject('name', 'COSMOSDB_FILE_CONTAINER', 'value', reference('cosmosDb').outputs.containerNames.value.file), createObject('name', 'COSMOSDB_LOG_CONTAINER', 'value', reference('cosmosDb').outputs.containerNames.value.log), createObject('name', 'AZURE_BLOB_ACCOUNT_NAME', 'value', reference('storageAccount').outputs.name.value), createObject('name', 'AZURE_BLOB_CONTAINER_NAME', 'value', variables('appStorageContainerName')), createObject('name', 'MIGRATOR_AGENT_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'PICKER_AGENT_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'FIXER_AGENT_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'SEMANTIC_VERIFIER_AGENT_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'SYNTAX_CHECKER_AGENT_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'SELECTION_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'TERMINATION_MODEL_DEPLOY', 'value', variables('modelDeployment').name), createObject('name', 'AZURE_AI_AGENT_MODEL_DEPLOYMENT_NAME', 'value', variables('modelDeployment').name), createObject('name', 'AI_PROJECT_ENDPOINT', 'value', reference('aiServices').outputs.aiProjectInfo.value.apiEndpoint), createObject('name', 'AZURE_AI_AGENT_PROJECT_CONNECTION_STRING', 'value', reference('aiServices').outputs.aiProjectInfo.value.apiEndpoint), createObject('name', 'AZURE_AI_AGENT_PROJECT_NAME', 'value', reference('aiServices').outputs.aiProjectInfo.value.name), createObject('name', 'AZURE_AI_AGENT_RESOURCE_GROUP_NAME', 'value', resourceGroup().name), createObject('name', 'AZURE_AI_AGENT_SUBSCRIPTION_ID', 'value', subscription().subscriptionId), createObject('name', 'AZURE_AI_AGENT_ENDPOINT', 'value', reference('aiServices').outputs.aiProjectInfo.value.apiEndpoint), createObject('name', 'AZURE_CLIENT_ID', 'value', reference('appIdentity').outputs.clientId.value), createObject('name', 'APP_ENV', 'value', 'prod'), createObject('name', 'AZURE_BASIC_LOGGING_LEVEL', 'value', 'INFO'), createObject('name', 'AZURE_PACKAGE_LOGGING_LEVEL', 'value', 'WARNING'), createObject('name', 'AZURE_LOGGING_PACKAGES', 'value', '')), if(parameters('enableMonitoring'), createArray(createObject('name', 'APPLICATIONINSIGHTS_INSTRUMENTATION_KEY', 'value', reference('applicationInsights').outputs.instrumentationKey.value), createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference('applicationInsights').outputs.connectionString.value)), createArray()))]",
                 "resources": {
                   "cpu": 1,
@@ -51278,7 +51278,7 @@
             "value": {
               "maxReplicas": 1,
               "minReplicas": 1,
-              "rules": "[if(parameters('enableScaling'), createArray(createObject('name', 'http-scaler', 'http', createObject('metadata', createObject('concurrentRequests', 100)))), createArray())]"
+              "rules": "[if(parameters('enableScalability'), createArray(createObject('name', 'http-scaler', 'http', createObject('metadata', createObject('concurrentRequests', 100)))), createArray())]"
             }
           },
           "tags": {
@@ -52851,7 +52851,7 @@
                     "value": "prod"
                   }
                 ],
-                "image": "[format('{0}/cmsafrontend:{1}', parameters('acrName'), parameters('imageVersion'))]",
+                "image": "[format('{0}/cmsafrontend:{1}', parameters('containerRegistryEndpoint'), parameters('imageTag'))]",
                 "name": "cmsafrontend",
                 "resources": {
                   "cpu": 1,
@@ -52868,9 +52868,9 @@
           },
           "scaleSettings": {
             "value": {
-              "maxReplicas": "[if(parameters('enableScaling'), 3, 1)]",
+              "maxReplicas": "[if(parameters('enableScalability'), 3, 1)]",
               "minReplicas": 1,
-              "rules": "[if(parameters('enableScaling'), createArray(createObject('name', 'http-scaler', 'http', createObject('metadata', createObject('concurrentRequests', 100)))), createArray())]"
+              "rules": "[if(parameters('enableScalability'), createArray(createObject('name', 'http-scaler', 'http', createObject('metadata', createObject('concurrentRequests', 100)))), createArray())]"
             }
           },
           "tags": {

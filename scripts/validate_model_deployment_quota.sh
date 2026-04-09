@@ -88,10 +88,10 @@ echo "🎯 Active Subscription: $(az account show --query '[name, id]' --output 
 quotaAvailable=true
 
 while IFS= read -r deployment; do
-  name=${AZURE_ENV_MODEL_NAME:-$(echo "$deployment" | jq -r '.name')}
-  model=${AZURE_ENV_MODEL_NAME:-$(echo "$deployment" | jq -r '.model.name')}
+  name=${AZURE_ENV_GPT_MODEL_NAME:-$(echo "$deployment" | jq -r '.name')}
+  model=${AZURE_ENV_GPT_MODEL_NAME:-$(echo "$deployment" | jq -r '.model.name')}
   type=${AZURE_ENV_MODEL_DEPLOYMENT_TYPE:-$(echo "$deployment" | jq -r '.sku.name')}
-  capacity=${AZURE_ENV_MODEL_CAPACITY:-$(echo "$deployment" | jq -r '.sku.capacity')}
+  capacity=${AZURE_ENV_GPT_MODEL_CAPACITY:-$(echo "$deployment" | jq -r '.sku.capacity')}
 
   echo "🔍 Validating model deployment: $name ..."
   ./scripts/validate_model_quota.sh --location "$LOCATION" --model "$model" --capacity "$capacity" --deployment-type "$type"
