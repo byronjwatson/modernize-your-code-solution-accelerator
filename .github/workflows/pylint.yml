@@ -5,6 +5,16 @@ permissions:
   
 on:
   push:
+    branches: [main, dev, demo]
+    paths:
+      - '**/*.py'
+      - '**/requirements.txt'
+      - '**/pyproject.toml'
+      - '.flake8'
+      - '.github/workflows/pylint.yml'
+  pull_request:
+    branches: [main, dev, demo]
+    types: [opened, ready_for_review, reopened, synchronize]
     paths:
       - '**/*.py'
       - '**/requirements.txt'

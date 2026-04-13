@@ -57,13 +57,13 @@ var replicaRegionPairs = {
 var replicaLocation = replicaRegionPairs[resourceGroup().location]
 
 @description('Optional. AI model deployment token capacity. Defaults to 150K tokens per minute.')
-param gptModelCapacity int = 150
+param gptDeploymentCapacity int = 150
 
 @description('Optional. Enable monitoring for the resources. This will enable Application Insights and Log Analytics. Defaults to false.')
 param enableMonitoring bool = false 
 
 @description('Optional. Enable scaling for the container apps. Defaults to false.')
-param enableScaling bool = false 
+param enableScalability bool = false 
 
 @description('Optional. Enable redundancy for applicable resources. Defaults to false.')
 param enableRedundancy bool = false
@@ -95,7 +95,7 @@ param enableTelemetry bool = true
 
 @minLength(1)
 @description('Optional. GPT model deployment type. Defaults to GlobalStandard.')
-param gptModelDeploymentType string = 'GlobalStandard'
+param deploymentType string = 'GlobalStandard'
 
 @minLength(1)
 @description('Optional. Name of the GPT model to deploy. Defaults to gpt-4o.')
@@ -103,20 +103,23 @@ param gptModelName string = 'gpt-4o'
 
 @minLength(1)
 @description('Optional. Set the Image tag. Defaults to latest_2025-11-10_599.')
-param imageVersion string = 'latest_2025-11-10_599'
+param imageTag string = 'latest_2025-11-10_599'
 
-@description('Optional. Azure Container Registry name. Defaults to cmsacontainerreg.azurecr.io')
-param acrName string = 'cmsacontainerreg.azurecr.io'
+@description('Optional. Azure Container Registry endpoint. Defaults to cmsacontainerreg.azurecr.io')
+param containerRegistryEndpoint string = 'cmsacontainerreg.azurecr.io'
 
 @minLength(1)
 @description('Optional. Version of the GPT model to deploy. Defaults to 2024-08-06.')
 param gptModelVersion string = '2024-08-06'
 
 @description('Optional. Use this parameter to use an existing AI project resource ID. Defaults to empty string.')
-param azureExistingAIProjectResourceId string = ''
+param existingFoundryProjectResourceId string = ''
 
 @description('Optional. Use this parameter to use an existing Log Analytics workspace resource ID. Defaults to empty string.')
 param existingLogAnalyticsWorkspaceId string = ''
+
+@description('Optional. AI model deployments array for quota validation scripts. Not used directly by the template.')
+param aiModelDeployments array = []
 
 var existingTags = resourceGroup().tags ?? {}
 
@@ -145,8 +148,8 @@ var modelDeployment = {
     version: gptModelVersion
   }
   sku: {
-    name: gptModelDeploymentType
-    capacity: gptModelCapacity
+    name: deploymentType
+    capacity: gptDeploymentCapacity
   }
   raiPolicyName: 'Microsoft.Default'
 }
@@ -742,7 +745,7 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     projectDescription: 'proj-${solutionSuffix}'
     logAnalyticsWorkspaceResourceId: enableMonitoring ? logAnalyticsWorkspaceResourceId : ''
     privateNetworking: null // Private endpoint is handled by the standalone aiFoundryPrivateEndpoint module
-    existingFoundryProjectResourceId: azureExistingAIProjectResourceId
+    existingFoundryProjectResourceId: existingFoundryProjectResourceId
     disableLocalAuth: true //Should be set to true for WAF aligned configuration
     customSubDomainName: 'aif-${solutionSuffix}'
     apiProperties: {
@@ -781,7 +784,7 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
 }
 
 var aiFoundryAiServicesResourceName = 'aif-${solutionSuffix}'
-var useExistingAiFoundryAiProject = !empty(azureExistingAIProjectResourceId)
+var useExistingAiFoundryAiProject = !empty(existingFoundryProjectResourceId)
 
 module aiFoundryPrivateEndpoint 'br/public:avm/res/network/private-endpoint:0.8.1' = if (enablePrivateNetworking && !useExistingAiFoundryAiProject) {
   name: take('pep-${aiFoundryAiServicesResourceName}-deployment', 64)
@@ -967,7 +970,7 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.19.0' = {
     containers: [
       {
         name: 'cmsabackend'
-        image: '${acrName}/cmsabackend:${imageVersion}'
+        image: '${containerRegistryEndpoint}/cmsabackend:${imageTag}'
         env: concat(
           [
             {
@@ -1111,10 +1114,10 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.19.0' = {
     ingressTargetPort: 8000
     ingressExternal: true
     scaleSettings: {
-      // maxReplicas: enableScaling ? 3 : 1
+      // maxReplicas: enableScalability ? 3 : 1
       maxReplicas: 1 // maxReplicas set to 1 (not 3) due to multiple agents created per type during WAF deployment
       minReplicas: 1
-      rules: enableScaling
+      rules: enableScalability
         ? [
             {
               name: 'http-scaler'
@@ -1155,7 +1158,7 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.19.0' = {
             value: 'prod'
           }
         ]
-        image: '${acrName}/cmsafrontend:${imageVersion}'
+        image: '${containerRegistryEndpoint}/cmsafrontend:${imageTag}'
         name: 'cmsafrontend'
         resources: {
           cpu: 1
@@ -1166,9 +1169,9 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.19.0' = {
     ingressTargetPort: 3000
     ingressExternal: true
     scaleSettings: {
-      maxReplicas: enableScaling ? 3 : 1
+      maxReplicas: enableScalability ? 3 : 1
       minReplicas: 1
-      rules: enableScaling
+      rules: enableScalability
         ? [
             {
               name: 'http-scaler'
