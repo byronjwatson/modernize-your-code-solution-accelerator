@@ -31,7 +31,7 @@ import { Light as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vs } from "react-syntax-highlighter/dist/esm/styles/hljs"
 import sql from "react-syntax-highlighter/dist/cjs/languages/hljs/sql"
 import { useNavigate, useParams } from "react-router-dom"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { getApiUrl, headerBuilder } from '../api/config';
 import BatchHistoryPanel from "../components/batchHistoryPanel"
 import PanelRight from "../components/Panels/PanelRight";
@@ -501,6 +501,7 @@ const ModernizationPage = () => {
   const [isZipButtonDisabled, setIsZipButtonDisabled] = useState(true);
   const [fileLoading, setFileLoading] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
+  const hasNavigatedRef = useRef(false);
   //const [pageLoadTime] = useState<number>(Date.now());
 
   // Fetch file content when a file is selected
@@ -536,11 +537,21 @@ const ModernizationPage = () => {
       setBatchSummary(data);
       if (data) {
 
-        const batchCompleted = data.status?.toLowerCase() === "completed" || data.status === "failed";
-        if (batchCompleted) {
+        const batchCompleted = data.status?.toLowerCase() === "completed" || data.status?.toLowerCase() === "failed";
+        const allFilesTerminal = data.files.every((file: any) =>
+          ["completed", "failed", "error"].includes(file.status?.toLowerCase() || "")
+        );
+
+        if (batchCompleted || allFilesTerminal) {
           setAllFilesCompleted(true);
           if (data.hasFiles > 0) {
             setIsZipButtonDisabled(false);
+          }
+          // Batch already finished (e.g., all files were harmful content) — navigate directly
+          if (!hasNavigatedRef.current) {
+            hasNavigatedRef.current = true;
+            navigate(`/batch-view/${batchId}`);
+            return;
           }
         }
         // Transform the server response to an array of your FileItem objects
@@ -725,7 +736,10 @@ const ModernizationPage = () => {
   // Update files state when Redux fileList changes
   useEffect(() => {
     if (reduxFileList && reduxFileList.length > 0) {
-      setAllFilesCompleted(false);
+      // Only reset completion state if not already finalized
+      if (!allFilesCompleted) {
+        setAllFilesCompleted(false);
+      }
       // Map the Redux fileList to our FileItem format
       const fileItems: FileItem[] = reduxFileList.filter(file => file.type !== 'summary').map((file: any, index: number) => ({
 
@@ -832,8 +846,11 @@ const ModernizationPage = () => {
         });
 
         // Navigate only after all files have reached terminal states.
-        console.log("Processing complete (all files done), navigating to batch view page");
-        navigate(`/batch-view/${batchId}`);
+        if (!hasNavigatedRef.current) {
+          hasNavigatedRef.current = true;
+          console.log("Processing complete (all files done), navigating to batch view page");
+          navigate(`/batch-view/${batchId}`);
+        }
       }
     } catch (err) {
       console.error("Failed to update summary status:", err);
