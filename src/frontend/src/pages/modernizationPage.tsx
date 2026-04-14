@@ -1013,6 +1013,43 @@ useEffect(() => {
     return () => clearInterval(checkInactivity);
   }, [lastActivityTime, files, allFilesCompleted, updateSummaryStatus, navigate, batchId]);
 
+  // Fallback polling: periodically re-fetch batch summary to catch cases where
+  // WebSocket events were missed (e.g., all files were harmful and processed
+  // before WebSocket connected). Polls every 5 seconds until all files are done.
+  useEffect(() => {
+    if (allFilesCompleted || !batchId || hasNavigatedRef.current) return;
+
+    const pollInterval = setInterval(async () => {
+      if (hasNavigatedRef.current || allFilesCompleted) {
+        clearInterval(pollInterval);
+        return;
+      }
+      try {
+        const data = await fetchBatchSummary(batchId);
+        if (!data) return;
+
+        const batchTerminal = ["completed", "failed"].includes(data.status?.toLowerCase() || "");
+        const allTerminal = data.files.every((file: any) =>
+          ["completed", "failed", "error"].includes(file.status?.toLowerCase() || "")
+        );
+
+        if (batchTerminal || allTerminal) {
+          console.log("Fallback poll detected batch completion, navigating to batch view");
+          clearInterval(pollInterval);
+          setAllFilesCompleted(true);
+          if (!hasNavigatedRef.current) {
+            hasNavigatedRef.current = true;
+            navigate(`/batch-view/${batchId}`);
+          }
+        }
+      } catch (err) {
+        console.error("Fallback poll error:", err);
+      }
+    }, 5000);
+
+    return () => clearInterval(pollInterval);
+  }, [batchId, allFilesCompleted, navigate]);
+
 
   useEffect(() => {
     console.log('Current files state:', files);
