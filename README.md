@@ -9,13 +9,41 @@ The Modernize your code solution accelerator allows users to specify a group of 
 
 <div align="center">
 
-[**SOLUTION OVERVIEW**](#solution-overview) \| [**QUICK DEPLOY**](#quick-deploy) \| [**BUSINESS SCENARIO**](#business-scenario) \| [**SUPPORTING DOCUMENTATION**](#supporting-documentation)
+[**FEATURES**](#features) \| [**GETTING STARTED**](#getting-started) \| [**GUIDANCE**](#guidance) \| [**RESOURCES**](#resources) \| [**SOLUTION OVERVIEW**](#solution-overview) \| [**QUICK DEPLOY**](#quick-deploy) \| [**BUSINESS SCENARIO**](#business-scenario) \| [**SUPPORTING DOCUMENTATION**](#supporting-documentation)
 
 </div>
 <br/>
 
  **Note:** With any AI solutions you create using these templates, you are responsible for assessing all associated risks and for complying with all applicable laws and safety standards. Learn more in the transparency documents for [Agent Service](https://learn.microsoft.com/en-us/azure/ai-foundry/responsible-ai/agents/transparency-note) and [Agent Framework](https://github.com/microsoft/agent-framework/blob/main/TRANSPARENCY_FAQ.md).
 <br/>
+
+## Features
+
+- **Code language modernization** to help translate legacy SQL workloads into modern target dialects.
+- **Business logic analysis** to recover intent from older systems and limited documentation.
+- **Human-in-the-loop review** to summarize outputs and support validation before export.
+- **Multi-agent orchestration** using Azure AI Foundry and Azure OpenAI for scalable modernization workflows.
+
+## Getting Started
+
+1. Confirm you have an Azure subscription, the required permissions, and **Azure Developer CLI (`azd`) v1.18.0 or later**.
+2. Review the [Deployment Guide](./docs/DeploymentGuide.md) for the quickest path to deploy the solution.
+3. Run the [quota check guide](./docs/quota_check.md) before deployment to verify model capacity in your region.
+4. If you want to develop locally, follow the [Local Development Setup](./docs/LocalDevelopmentSetup.md) or [Local Setup Guide](./docs/LocalSetupGuide.md).
+
+## Guidance
+
+- Use the [Custom scenario guide](./docs/CustomizingScenario.md) to tailor the accelerator to your own modernization workflow.
+- Review the [WAF architecture guidance](./docs/ArchitectureWAF.md) if you need a Well-Architected deployment option.
+- Follow the [Azure Account Set Up](./docs/AzureAccountSetUp.md) instructions before deployment.
+- If you run into issues, check the [TroubleShootingSteps](./docs/TroubleShootingSteps.md) documentation.
+
+## Resources
+
+- [Azure AI Foundry documentation](https://learn.microsoft.com/en-us/azure/ai-studio/)
+- [Semantic Kernel Agent Framework](https://learn.microsoft.com/en-us/semantic-kernel/frameworks/agent/?pivots=programming-language-python)
+- [Azure OpenAI Service Documentation](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/use-your-data)
+- [AI Playbook](https://learn.microsoft.com/en-us/ai/playbook/)
 
 <h2><img src="./docs/images/read_me/solution-overview.png" width="48" />
 Solution overview
