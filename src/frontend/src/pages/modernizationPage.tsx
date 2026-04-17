@@ -4,7 +4,6 @@ import Header from "../components/Header/Header";
 import HeaderTools from "../components/Header/HeaderTools";
 import PanelLeft from "../components/Panels/PanelLeft";
 import webSocketService from "../api/WebSocketService";
-import { useSelector } from 'react-redux';
 import {
   Button,
   Text,
