@@ -109,7 +109,7 @@ class CosmosDBClient(DatabaseBase):
 
                     self.logger.info("Returning existing batch record", batch_id=str(batch_id))
                     return BatchRecord.fromdb(batchexists)
-                
+
                 # This line should never be reached as all paths above either return or raise
                 raise RuntimeError(f"Unexpected state while processing batch {batch_id}")
 
