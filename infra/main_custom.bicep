@@ -57,13 +57,13 @@ var replicaRegionPairs = {
 var replicaLocation = replicaRegionPairs[resourceGroup().location]
 
 @description('Optional. AI model deployment token capacity. Defaults to 150K tokens per minute.')
-param gptModelCapacity int = 150
+param gptDeploymentCapacity int = 150
 
 @description('Optional. Enable monitoring for the resources. This will enable Application Insights and Log Analytics. Defaults to false.')
 param enableMonitoring bool = false 
 
 @description('Optional. Enable scaling for the container apps. Defaults to false.')
-param enableScaling bool = false
+param enableScalability bool = false
 
 @description('Optional. Enable redundancy for applicable resources. Defaults to false.')
 param enableRedundancy bool = false
@@ -95,7 +95,7 @@ param enableTelemetry bool = true
 
 @minLength(1)
 @description('Optional. GPT model deployment type. Defaults to GlobalStandard.')
-param gptModelDeploymentType string = 'GlobalStandard'
+param deploymentType string = 'GlobalStandard'
 
 @minLength(1)
 @description('Optional. Name of the GPT model to deploy. Defaults to gpt-4o.')
@@ -108,17 +108,19 @@ param frontendImageName string = ''
 
 @minLength(1)
 @description('Optional. Set the Image tag. Defaults to latest')
-param imageVersion string = 'latest'
+param imageTag string = 'latest'
 
 @minLength(1)
 @description('Optional. Version of the GPT model to deploy. Defaults to 2024-08-06.')
 param gptModelVersion string = '2024-08-06'
 
 @description('Optional. Use this parameter to use an existing AI project resource ID. Defaults to empty string.')
-param azureExistingAIProjectResourceId string = ''
+param existingFoundryProjectResourceId string = ''
 
 @description('Optional. Use this parameter to use an existing Log Analytics workspace resource ID. Defaults to empty string.')
 param existingLogAnalyticsWorkspaceId string = ''
+
+var existingTags = resourceGroup().tags ?? {}
 
 var allTags = union(
   {
@@ -145,8 +147,8 @@ var modelDeployment = {
     version: gptModelVersion
   }
   sku: {
-    name: gptModelDeploymentType
-    capacity: gptModelCapacity
+    name: deploymentType
+    capacity: gptDeploymentCapacity
   }
   raiPolicyName: 'Microsoft.Default'
 }
@@ -154,18 +156,21 @@ var modelDeployment = {
 @description('Optional. Tag, Created by user name. Defaults to user principal name or object ID.')
 param createdBy string = contains(deployer(), 'userPrincipalName')? split(deployer().userPrincipalName, '@')[0]: deployer().objectId
  
+var resourceGroupTagsValue = union(
+  existingTags,
+  allTags,
+  {
+    TemplateName: 'Code Modernization'
+    Type: enablePrivateNetworking ? 'WAF' : 'Non-WAF'
+    CreatedBy: createdBy
+  }
+)
 
 // ========== Resource Group Tag ========== //
 resource resourceGroupTags 'Microsoft.Resources/tags@2021-04-01' = {
   name: 'default'
   properties: {
-    tags: {
-      ...resourceGroup().tags
-      ...allTags
-      TemplateName: 'Code Modernization'
-      Type: enablePrivateNetworking ? 'WAF' : 'Non-WAF'
-      CreatedBy: createdBy
-    }
+    tags: resourceGroupTagsValue
   }
 }
 
@@ -283,7 +288,6 @@ module applicationInsights 'br/public:avm/res/insights/component:0.7.0' = if (en
     name: 'appi-${solutionSuffix}'
     location: location
     workspaceResourceId: logAnalyticsWorkspaceResourceId
-    diagnosticSettings: [{ workspaceResourceId: logAnalyticsWorkspaceResourceId }]
     tags: allTags
     enableTelemetry: enableTelemetry
     retentionInDays: 365
@@ -561,9 +565,9 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.20.0' = if (e
     enableTelemetry: enableTelemetry
     computerName: take(virtualMachineResourceName, 15)
     osType: 'Windows'
-    vmSize: vmSize ?? 'Standard_D2s_v3'
-    adminUsername: vmAdminUsername ?? 'JumpboxAdminUser'
-    adminPassword: vmAdminPassword ?? 'JumpboxAdminP@ssw0rd1234!'
+    vmSize: !empty(vmSize) ? vmSize : 'Standard_D2s_v5'
+    adminUsername: !empty(vmAdminUsername) ? vmAdminUsername : 'JumpboxAdminUser'
+    adminPassword: !empty(vmAdminPassword) ? vmAdminPassword : 'JumpboxAdminP@ssw0rd1234!'
     managedIdentities: {
       systemAssigned: true
     }
@@ -666,16 +670,8 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     projectName: 'proj-${solutionSuffix}'
     projectDescription: 'proj-${solutionSuffix}'
     logAnalyticsWorkspaceResourceId: enableMonitoring ? logAnalyticsWorkspaceResourceId : ''
-    privateNetworking: enablePrivateNetworking
-      ? {
-          virtualNetworkResourceId: virtualNetwork!.outputs.resourceId
-          subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
-          cogServicesPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.cognitiveServices]!.outputs.resourceId
-          openAIPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.openAI]!.outputs.resourceId
-          aiServicesPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.aiServices]!.outputs.resourceId
-        }
-      : null
-    existingFoundryProjectResourceId: azureExistingAIProjectResourceId
+    privateNetworking: null // Private endpoint is handled by the standalone aiFoundryPrivateEndpoint module
+    existingFoundryProjectResourceId: existingFoundryProjectResourceId
     disableLocalAuth: true //Should be set to true for WAF aligned configuration
     customSubDomainName: 'aif-${solutionSuffix}'
     apiProperties: {
@@ -710,6 +706,45 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     ]
     tags: allTags
     enableTelemetry: enableTelemetry
+  }
+}
+
+var aiFoundryAiServicesResourceName = 'aif-${solutionSuffix}'
+var useExistingAiFoundryAiProject = !empty(existingFoundryProjectResourceId)
+
+module aiFoundryPrivateEndpoint 'br/public:avm/res/network/private-endpoint:0.8.1' = if (enablePrivateNetworking && !useExistingAiFoundryAiProject) {
+  name: take('pep-${aiFoundryAiServicesResourceName}-deployment', 64)
+  params: {
+    name: 'pep-${aiFoundryAiServicesResourceName}'
+    customNetworkInterfaceName: 'nic-${aiFoundryAiServicesResourceName}'
+    location: location
+    tags: allTags
+    privateLinkServiceConnections: [
+      {
+        name: 'pep-${aiFoundryAiServicesResourceName}-connection'
+        properties: {
+          privateLinkServiceId: aiServices.outputs.resourceId
+          groupIds: ['account']
+        }
+      }
+    ]
+    privateDnsZoneGroup: {
+      privateDnsZoneGroupConfigs: [
+        {
+          name: 'ai-services-dns-zone-cognitiveservices'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.cognitiveServices]!.outputs.resourceId
+        }
+        {
+          name: 'ai-services-dns-zone-openai'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.openAI]!.outputs.resourceId
+        }
+        {
+          name: 'ai-services-dns-zone-aiservices'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.aiServices]!.outputs.resourceId
+        }
+      ]
+    }
+    subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
   }
 }
 
@@ -890,7 +925,7 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.19.0' = {
     containers: [
       {
         name: 'cmsabackend'
-        image: !empty(backendImageName) ? backendImageName : 'cmsacontainerreg.azurecr.io/cmsabackend:${imageVersion}'
+        image: !empty(backendImageName) ? backendImageName : 'cmsacontainerreg.azurecr.io/cmsabackend:${imageTag}'
         env: concat(
           [
             {
@@ -1030,10 +1065,10 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.19.0' = {
     ingressTargetPort: 8000
     ingressExternal: true
     scaleSettings: {
-      // maxReplicas: enableScaling ? 3 : 1
+      // maxReplicas: enableScalability ? 3 : 1
       maxReplicas: 1 // maxReplicas set to 1 (not 3) due to multiple agents created per type during WAF deployment
       minReplicas: 1
-      rules: enableScaling
+      rules: enableScalability
         ? [
             {
               name: 'http-scaler'
@@ -1082,7 +1117,7 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.19.0' = {
             value: 'prod'
           }
         ]
-        image: !empty(frontendImageName) ? frontendImageName : 'cmsacontainerreg.azurecr.io/cmsafrontend:${imageVersion}'
+        image: !empty(frontendImageName) ? frontendImageName : 'cmsacontainerreg.azurecr.io/cmsafrontend:${imageTag}'
         name: 'cmsafrontend'
         resources: {
           cpu: 1
@@ -1093,9 +1128,9 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.19.0' = {
     ingressTargetPort: 3000
     ingressExternal: true
     scaleSettings: {
-      maxReplicas: enableScaling ? 3 : 1
+      maxReplicas: enableScalability ? 3 : 1
       minReplicas: 1
-      rules: enableScaling
+      rules: enableScalability
         ? [
             {
               name: 'http-scaler'

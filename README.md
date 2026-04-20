@@ -88,6 +88,8 @@ Follow the quick deploy steps on the deployment guide to deploy this solution to
 
 <br/>
 
+> **Note**: Some tenants may have additional security restrictions that run periodically and could impact the application (e.g., blocking public network access). If you experience issues or the application stops working, check if these restrictions are the cause. In such cases, consider deploying the WAF-supported version to ensure compliance. To configure, [Click here](./docs/DeploymentGuide.md#31-choose-deployment-type-optional).
+
 > ⚠️ **Important: Check Azure OpenAI Quota Availability**
  <br/>To ensure sufficient quota is available in your subscription, please follow [quota check instructions guide](./docs/quota_check.md) before you deploy the solution.
 
@@ -196,6 +198,14 @@ Check out similar solution accelerators
 | [Conversation Knowledge Mining](https://github.com/microsoft/Conversation-Knowledge-Mining-Solution-Accelerator) | Enable organizations to derive insights from volumes of conversational data using generative AI |
 
 <br/>   
+
+💡 Want to get familiar with Microsoft's AI Engineering best practices? Check out our playbook to learn more
+
+| Playbook | Description |
+|:---|:---|
+| [AI&nbsp;playbook](https://learn.microsoft.com/en-us/ai/playbook/) | The Artificial Intelligence (AI) Playbook provides enterprise software engineers with solutions, capabilities, and code developed to solve real-world AI problems. |
+
+<br/>
 
 ## Provide feedback
 

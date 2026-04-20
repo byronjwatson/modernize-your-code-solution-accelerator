@@ -6,6 +6,8 @@ This guide walks you through deploying the Modernize Your Code Solution Accelera
 
 🆘 **Need Help?** If you encounter any issues during deployment, check our [Troubleshooting Guide](./TroubleShootingSteps.md) for solutions to common problems.
 
+> **Note**: Some tenants may have additional security restrictions that run periodically and could impact the application (e.g., blocking public network access). If you experience issues or the application stops working, check if these restrictions are the cause. In such cases, consider deploying the WAF-supported version to ensure compliance. To configure, [Click here](#31-choose-deployment-type-optional).
+
 ## Step 1: Prerequisites & Setup
 
 ### 1.1 Azure Account Requirements
@@ -202,11 +204,11 @@ Copy the contents from the production configuration file to your main parameters
 
 > **Note:** This section only applies if you selected **Production** deployment type in section 3.1. VMs are not deployed in the default Development/Testing configuration.
 
-By default, random GUIDs are generated for VM credentials. To set custom credentials:
+By default, hard-coded fallback values are used for VM credentials (`JumpboxAdminUser` / `JumpboxAdminP@ssw0rd1234!`). To set custom credentials:
 
 ```shell
-azd env set AZURE_ENV_VM_ADMIN_USERNAME <your-username>
-azd env set AZURE_ENV_VM_ADMIN_PASSWORD <your-password>
+azd env set AZURE_ENV_JUMPBOX_ADMIN_USERNAME <your-username>
+azd env set AZURE_ENV_JUMPBOX_ADMIN_PASSWORD <your-password>
 ```
 
 ### 3.3 Advanced Configuration (Optional)
@@ -268,6 +270,10 @@ azd auth login --tenant-id <tenant-id>
 > 3. Under the **Overview** section, locate the **Tenant ID** field. Copy the value displayed.
 
 ### 4.2 Start Deployment
+**NOTE:** If you are running the latest azd version (version 1.23.9), please run the following command. 
+```bash 
+azd config set provision.preflight off
+```
 
 ```shell
 azd up

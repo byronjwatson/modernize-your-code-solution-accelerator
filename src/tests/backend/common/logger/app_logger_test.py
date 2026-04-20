@@ -76,6 +76,38 @@ def test_error_log(logger_instance):
         log_json = json.loads(mock_error.call_args[0][0])
         assert log_json["message"] == "Error log"
         assert log_json["context"]["error_code"] == 500
+        # Called outside an exception context, so exc_info should be False
+        assert mock_error.call_args[1]["exc_info"] is False
+
+
+def test_error_log_with_active_exception(logger_instance):
+    with patch.object(logger_instance.logger, "error") as mock_error:
+        try:
+            raise ValueError("test error")
+        except ValueError:
+            logger_instance.error("Error log inside exception")
+        mock_error.assert_called_once()
+        # Called inside an exception context, so exc_info should be True
+        assert mock_error.call_args[1]["exc_info"] is True
+
+
+def test_error_log_without_active_exception(logger_instance):
+    with patch.object(logger_instance.logger, "error") as mock_error:
+        logger_instance.error("Error log outside exception")
+        mock_error.assert_called_once()
+        # Called outside an exception context, so exc_info should be False
+        assert mock_error.call_args[1]["exc_info"] is False
+
+
+def test_error_log_explicit_exc_info_override(logger_instance):
+    with patch.object(logger_instance.logger, "error") as mock_error:
+        try:
+            raise ValueError("test error")
+        except ValueError:
+            logger_instance.error("Suppressed traceback", exc_info=False)
+        mock_error.assert_called_once()
+        # Explicit exc_info=False should override auto-detection even inside an exception context
+        assert mock_error.call_args[1]["exc_info"] is False
 
 
 def test_critical_log(logger_instance):

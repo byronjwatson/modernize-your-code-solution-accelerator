@@ -11,6 +11,7 @@ load_dotenv()
 
 
 def track_event_if_configured(event_name: str, event_data: dict):
+    """Track a custom event to Application Insights customEvents table."""
     instrumentation_key = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
     if instrumentation_key:
         track_event(event_name, event_data)

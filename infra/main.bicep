@@ -57,13 +57,13 @@ var replicaRegionPairs = {
 var replicaLocation = replicaRegionPairs[resourceGroup().location]
 
 @description('Optional. AI model deployment token capacity. Defaults to 150K tokens per minute.')
-param gptModelCapacity int = 150
+param gptDeploymentCapacity int = 150
 
 @description('Optional. Enable monitoring for the resources. This will enable Application Insights and Log Analytics. Defaults to false.')
 param enableMonitoring bool = false 
 
 @description('Optional. Enable scaling for the container apps. Defaults to false.')
-param enableScaling bool = false 
+param enableScalability bool = false 
 
 @description('Optional. Enable redundancy for applicable resources. Defaults to false.')
 param enableRedundancy bool = false
@@ -95,7 +95,7 @@ param enableTelemetry bool = true
 
 @minLength(1)
 @description('Optional. GPT model deployment type. Defaults to GlobalStandard.')
-param gptModelDeploymentType string = 'GlobalStandard'
+param deploymentType string = 'GlobalStandard'
 
 @minLength(1)
 @description('Optional. Name of the GPT model to deploy. Defaults to gpt-4o.')
@@ -103,20 +103,25 @@ param gptModelName string = 'gpt-4o'
 
 @minLength(1)
 @description('Optional. Set the Image tag. Defaults to latest_2025-11-10_599.')
-param imageVersion string = 'latest_2025-11-10_599'
+param imageTag string = 'latest_2025-11-10_599'
 
-@description('Optional. Azure Container Registry name. Defaults to cmsacontainerreg.azurecr.io')
-param acrName string = 'cmsacontainerreg.azurecr.io'
+@description('Optional. Azure Container Registry endpoint. Defaults to cmsacontainerreg.azurecr.io')
+param containerRegistryEndpoint string = 'cmsacontainerreg.azurecr.io'
 
 @minLength(1)
 @description('Optional. Version of the GPT model to deploy. Defaults to 2024-08-06.')
 param gptModelVersion string = '2024-08-06'
 
 @description('Optional. Use this parameter to use an existing AI project resource ID. Defaults to empty string.')
-param azureExistingAIProjectResourceId string = ''
+param existingFoundryProjectResourceId string = ''
 
 @description('Optional. Use this parameter to use an existing Log Analytics workspace resource ID. Defaults to empty string.')
 param existingLogAnalyticsWorkspaceId string = ''
+
+@description('Optional. AI model deployments array for quota validation scripts. Not used directly by the template.')
+param aiModelDeployments array = []
+
+var existingTags = resourceGroup().tags ?? {}
 
 var allTags = union(
   {
@@ -143,8 +148,8 @@ var modelDeployment = {
     version: gptModelVersion
   }
   sku: {
-    name: gptModelDeploymentType
-    capacity: gptModelCapacity
+    name: deploymentType
+    capacity: gptDeploymentCapacity
   }
   raiPolicyName: 'Microsoft.Default'
 }
@@ -157,13 +162,15 @@ param createdBy string = contains(deployer(), 'userPrincipalName')? split(deploy
 resource resourceGroupTags 'Microsoft.Resources/tags@2021-04-01' = {
   name: 'default'
   properties: {
-    tags: {
-      ...resourceGroup().tags
-      ...allTags
-      TemplateName: 'Code Modernization'
-      Type: enablePrivateNetworking ? 'WAF' : 'Non-WAF'
-      CreatedBy: createdBy
-    }
+    tags: union(
+      existingTags,
+      allTags,
+      {
+        TemplateName: 'Code Modernization'
+        Type: enablePrivateNetworking ? 'WAF' : 'Non-WAF'
+        CreatedBy: createdBy
+      }
+    )
   }
 }
 
@@ -281,14 +288,30 @@ module applicationInsights 'br/public:avm/res/insights/component:0.7.0' = if (en
     name: 'appi-${solutionSuffix}'
     location: location
     workspaceResourceId: logAnalyticsWorkspaceResourceId
-    diagnosticSettings: [{ workspaceResourceId: logAnalyticsWorkspaceResourceId }]
     tags: allTags
     enableTelemetry: enableTelemetry
     retentionInDays: 365
     kind: 'web'
     disableIpMasking: false
-    disableLocalAuth: true
     flowType: 'Bluefield'
+    // WAF aligned configuration for Private Networking - block public ingestion/query
+    publicNetworkAccessForIngestion: enablePrivateNetworking ? 'Disabled' : 'Enabled'
+    publicNetworkAccessForQuery: enablePrivateNetworking ? 'Disabled' : 'Enabled'
+  }
+}
+
+// ========== Data Collection Endpoint (DCE) ========== //
+// Required for Azure Monitor Private Link - provides private ingestion and configuration endpoints
+// Per: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/private-link-configure
+module dataCollectionEndpoint 'br/public:avm/res/insights/data-collection-endpoint:0.5.0' = if (enablePrivateNetworking && enableMonitoring) {
+  name: take('avm.res.insights.data-collection-endpoint.${solutionSuffix}', 64)
+  params: {
+    name: 'dce-${solutionSuffix}'
+    location: location
+    kind: 'Windows'
+    publicNetworkAccess: 'Disabled'
+    tags: allTags
+    enableTelemetry: enableTelemetry
   }
 }
 
@@ -316,6 +339,10 @@ var privateDnsZones = [
   'privatelink.vaultcore.azure.net'
   'privatelink.blob.${environment().suffixes.storage}'
   'privatelink.file.${environment().suffixes.storage}'
+  'privatelink.monitor.azure.com'                       // Azure Monitor global endpoints (App Insights, DCE)
+  'privatelink.oms.opinsights.azure.com'                 // Log Analytics OMS endpoints
+  'privatelink.ods.opinsights.azure.com'                 // Log Analytics ODS ingestion endpoints
+  'privatelink.agentsvc.azure-automation.net'             // Agent service automation endpoints
 ]
 
 // DNS Zone Index Constants
@@ -327,6 +354,10 @@ var dnsZoneIndex = {
   keyVault: 4
   storageBlob: 5
   storageFile: 6
+  monitor: 7
+  oms: 8
+  ods: 9
+  agentSvc: 10
 }
 
 // ===================================================
@@ -351,6 +382,76 @@ module avmPrivateDnsZones 'br/public:avm/res/network/private-dns-zone:0.8.0' = [
     }
   }
 ]
+
+// ========== Azure Monitor Private Link Scope (AMPLS) ========== //
+// Step 1: Create AMPLS
+// Step 2: Connect Azure Monitor resources (LAW, Application Insights, DCE) to the AMPLS
+// Step 3: Connect AMPLS to a private endpoint with required DNS zones
+// Per: https://learn.microsoft.com/en-us/azure/azure-monitor/fundamentals/private-link-configure
+module azureMonitorPrivateLinkScope 'br/public:avm/res/insights/private-link-scope:0.6.0' = if (enablePrivateNetworking) {
+  name: take('avm.res.insights.private-link-scope.${solutionSuffix}', 64)
+  #disable-next-line no-unnecessary-dependson
+  dependsOn: [logAnalyticsWorkspace, applicationInsights, dataCollectionEndpoint, virtualNetwork]
+  params: {
+    name: 'ampls-${solutionSuffix}'
+    location: 'global'
+    // Access mode: PrivateOnly ensures all ingestion and queries go through private link
+    accessModeSettings: {
+      ingestionAccessMode: 'PrivateOnly'
+      queryAccessMode: 'PrivateOnly'
+    }
+    // Step 2: Connect Azure Monitor resources to the AMPLS as scoped resources
+    scopedResources: concat([
+        {
+          name: 'scoped-law'
+          linkedResourceId: logAnalyticsWorkspaceResourceId
+        }
+      ], enableMonitoring ? [
+        {
+          name: 'scoped-appi'
+          linkedResourceId: applicationInsights!.outputs.resourceId
+        }
+        {
+          name: 'scoped-dce'
+          linkedResourceId: dataCollectionEndpoint!.outputs.resourceId
+        }
+      ] : [])
+    // Step 3: Connect AMPLS to a private endpoint
+    // The private endpoint requires 5 DNS zones per documentation:
+    // - privatelink.monitor.azure.com (App Insights + DCE global endpoints)
+    // - privatelink.oms.opinsights.azure.com (Log Analytics OMS)
+    // - privatelink.ods.opinsights.azure.com (Log Analytics ODS ingestion)
+    // - privatelink.agentsvc.azure-automation.net (Agent service automation)
+    // - privatelink.blob.core.windows.net (Agent solution packs storage)
+    privateEndpoints: [
+      {
+        name: 'pep-ampls-${solutionSuffix}'
+        subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            {
+              privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.monitor]!.outputs.resourceId
+            }
+            {
+              privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.oms]!.outputs.resourceId
+            }
+            {
+              privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.ods]!.outputs.resourceId
+            }
+            {
+              privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.agentSvc]!.outputs.resourceId
+            }
+            {
+              privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.storageBlob]!.outputs.resourceId
+            }
+          ]
+        }
+      }
+    ]
+    tags: allTags
+    enableTelemetry: enableTelemetry
+  }
+}
 
 // Azure Bastion Host
 var bastionHostName = 'bas-${solutionSuffix}'
@@ -433,6 +534,7 @@ module windowsVmDataCollectionRules 'br/public:avm/res/insights/data-collection-
     location: dataCollectionRulesLocation
     dataCollectionRuleProperties: {
       kind: 'Windows'
+      dataCollectionEndpointResourceId: dataCollectionEndpoint!.outputs.resourceId
       dataSources: {
         performanceCounters: [
           {
@@ -491,26 +593,6 @@ module windowsVmDataCollectionRules 'br/public:avm/res/insights/data-collection-
             name: 'perfCounterDataSource60'
           }
         ]
-        windowsEventLogs: [
-          {
-            name: 'SecurityAuditEvents'
-            streams: [
-              'Microsoft-WindowsEvent'
-            ]
-            eventLogName: 'Security'
-            eventTypes: [
-              {
-                eventType: 'Audit Success'
-              }
-              {
-                eventType: 'Audit Failure'
-              }
-            ]
-            xPathQueries: [
-              'Security!*[System[(EventID=4624 or EventID=4625)]]'
-            ]
-          }
-        ]
       }
       destinations: {
         logAnalytics: [
@@ -528,8 +610,6 @@ module windowsVmDataCollectionRules 'br/public:avm/res/insights/data-collection-
           destinations: [
             'la-${dataCollectionRulesResourceName}'
           ]
-          transformKql: 'source'
-          outputStream: 'Microsoft-Perf'
         }
       ]
     }
@@ -559,9 +639,9 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.20.0' = if (e
     enableTelemetry: enableTelemetry
     computerName: take(virtualMachineResourceName, 15)
     osType: 'Windows'
-    vmSize: vmSize ?? 'Standard_D2s_v3'
-    adminUsername: vmAdminUsername ?? 'JumpboxAdminUser'
-    adminPassword: vmAdminPassword ?? 'JumpboxAdminP@ssw0rd1234!'
+    vmSize: !empty(vmSize) ? vmSize : 'Standard_D2s_v5'
+    adminUsername: !empty(vmAdminUsername) ? vmAdminUsername : 'JumpboxAdminUser'
+    adminPassword: !empty(vmAdminPassword) ? vmAdminPassword : 'JumpboxAdminP@ssw0rd1234!'
     managedIdentities: {
       systemAssigned: true
     }
@@ -664,16 +744,8 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     projectName: 'proj-${solutionSuffix}'
     projectDescription: 'proj-${solutionSuffix}'
     logAnalyticsWorkspaceResourceId: enableMonitoring ? logAnalyticsWorkspaceResourceId : ''
-    privateNetworking: enablePrivateNetworking
-      ? {
-          virtualNetworkResourceId: virtualNetwork!.outputs.resourceId
-          subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
-          cogServicesPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.cognitiveServices]!.outputs.resourceId
-          openAIPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.openAI]!.outputs.resourceId
-          aiServicesPrivateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.aiServices]!.outputs.resourceId
-        }
-      : null
-    existingFoundryProjectResourceId: azureExistingAIProjectResourceId
+    privateNetworking: null // Private endpoint is handled by the standalone aiFoundryPrivateEndpoint module
+    existingFoundryProjectResourceId: existingFoundryProjectResourceId
     disableLocalAuth: true //Should be set to true for WAF aligned configuration
     customSubDomainName: 'aif-${solutionSuffix}'
     apiProperties: {
@@ -708,6 +780,45 @@ module aiServices 'modules/ai-foundry/aifoundry.bicep' = {
     ]
     tags: allTags
     enableTelemetry: enableTelemetry
+  }
+}
+
+var aiFoundryAiServicesResourceName = 'aif-${solutionSuffix}'
+var useExistingAiFoundryAiProject = !empty(existingFoundryProjectResourceId)
+
+module aiFoundryPrivateEndpoint 'br/public:avm/res/network/private-endpoint:0.8.1' = if (enablePrivateNetworking && !useExistingAiFoundryAiProject) {
+  name: take('pep-${aiFoundryAiServicesResourceName}-deployment', 64)
+  params: {
+    name: 'pep-${aiFoundryAiServicesResourceName}'
+    customNetworkInterfaceName: 'nic-${aiFoundryAiServicesResourceName}'
+    location: location
+    tags: allTags
+    privateLinkServiceConnections: [
+      {
+        name: 'pep-${aiFoundryAiServicesResourceName}-connection'
+        properties: {
+          privateLinkServiceId: aiServices.outputs.resourceId
+          groupIds: ['account']
+        }
+      }
+    ]
+    privateDnsZoneGroup: {
+      privateDnsZoneGroupConfigs: [
+        {
+          name: 'ai-services-dns-zone-cognitiveservices'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.cognitiveServices]!.outputs.resourceId
+        }
+        {
+          name: 'ai-services-dns-zone-openai'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.openAI]!.outputs.resourceId
+        }
+        {
+          name: 'ai-services-dns-zone-aiservices'
+          privateDnsZoneResourceId: avmPrivateDnsZones[dnsZoneIndex.aiServices]!.outputs.resourceId
+        }
+      ]
+    }
+    subnetResourceId: virtualNetwork!.outputs.pepsSubnetResourceId
   }
 }
 
@@ -859,7 +970,7 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.19.0' = {
     containers: [
       {
         name: 'cmsabackend'
-        image: '${acrName}/cmsabackend:${imageVersion}'
+        image: '${containerRegistryEndpoint}/cmsabackend:${imageTag}'
         env: concat(
           [
             {
@@ -1003,10 +1114,10 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.19.0' = {
     ingressTargetPort: 8000
     ingressExternal: true
     scaleSettings: {
-      // maxReplicas: enableScaling ? 3 : 1
+      // maxReplicas: enableScalability ? 3 : 1
       maxReplicas: 1 // maxReplicas set to 1 (not 3) due to multiple agents created per type during WAF deployment
       minReplicas: 1
-      rules: enableScaling
+      rules: enableScalability
         ? [
             {
               name: 'http-scaler'
@@ -1047,7 +1158,7 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.19.0' = {
             value: 'prod'
           }
         ]
-        image: '${acrName}/cmsafrontend:${imageVersion}'
+        image: '${containerRegistryEndpoint}/cmsafrontend:${imageTag}'
         name: 'cmsafrontend'
         resources: {
           cpu: 1
@@ -1058,9 +1169,9 @@ module containerAppFrontend 'br/public:avm/res/app/container-app:0.19.0' = {
     ingressTargetPort: 3000
     ingressExternal: true
     scaleSettings: {
-      maxReplicas: enableScaling ? 3 : 1
+      maxReplicas: enableScalability ? 3 : 1
       minReplicas: 1
-      rules: enableScaling
+      rules: enableScalability
         ? [
             {
               name: 'http-scaler'

@@ -218,7 +218,7 @@ async def test_blob_storage_init_exception():
         })
 
         # Assert that error logging happened with the expected JSON string
-        mock_logger_instance.error.assert_called_once_with(expected_error_log)
+        mock_logger_instance.error.assert_called_once_with(expected_error_log, exc_info=True)
 
         # Assert that debug log is written for container existence
         mock_logger_instance.debug.assert_called_once_with(expected_debug_log)

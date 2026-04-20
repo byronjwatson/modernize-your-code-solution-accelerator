@@ -4,10 +4,9 @@ a query from one SQL dialect to another.
 It is the main entry point for the SQL migration process.
 """
 
-import logging
-
 from api.status_updates import send_status_update
 
+from common.logger.app_logger import AppLogger
 from common.models.api import (
     FileProcessUpdate,
     FileRecord,
@@ -28,8 +27,7 @@ from sql_agents.convert_script import convert_script
 from sql_agents.helpers.models import AgentType
 from sql_agents.helpers.utils import is_text
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger = AppLogger("ProcessBatch")
 
 
 # Walk through batch structure processing each file
@@ -37,7 +35,7 @@ async def process_batch_async(
     batch_id: str, convert_from: str = "informix", convert_to: str = "tsql"
 ):
     """Central batch processing function to process each file in the batch"""
-    logger.info("Processing batch: %s", batch_id)
+    logger.info("Processing batch", batch_id=batch_id)
     storage = await BlobStorageFactory.get_storage()
     batch_service = BatchService()
     await batch_service.initialize_database()
@@ -46,15 +44,19 @@ async def process_batch_async(
         batch_files = await batch_service.database.get_batch_files(batch_id)
         if not batch_files:
             raise HTTPException(status_code=404, detail="Batch not found")
+        logger.info("Batch files found", batch_id=batch_id, file_count=len(batch_files))
         # Retrieve list of file paths
         await batch_service.update_batch(batch_id, ProcessStatus.IN_PROGRESS)
     except Exception as exc:
-        logger.error("Error updating batch status. %s", exc)
+        logger.error("Error updating batch status", batch_id=batch_id, error=str(exc))
+        # Mark batch as failed and stop further processing if initialization fails
+        await batch_service.update_batch(batch_id, ProcessStatus.FAILED)
+        return
 
     # Get the global SQL agents instance
     sql_agents = get_sql_agents()
     if not sql_agents:
-        logger.error("SQL agents not initialized. Application may not have started properly.")
+        logger.error("SQL agents not initialized", exc_info=False, batch_id=batch_id)
         await batch_service.update_batch(batch_id, ProcessStatus.FAILED)
         return
 
@@ -73,14 +75,14 @@ async def process_batch_async(
                 file_record.status = ProcessStatus.IN_PROGRESS
                 await batch_service.update_file_record(file_record)
             except Exception as exc:
-                logger.error("Error updating file status. %s", exc)
+                logger.error("Error updating file status", batch_id=batch_id, file_id=str(file_record.file_id), error=str(exc))
 
             sql_in_file = await storage.get_file(file_record.blob_path)
 
             # split into base validation routine
             # Check if the file is a valid text file <--
             if not is_text(sql_in_file):
-                logger.error("File is not a valid text file. Skipping.")
+                logger.error("File is not a valid text file. Skipping.", exc_info=False, batch_id=batch_id, file_id=str(file_record.file_id))
                 # insert data base write to file record stating invalid file
                 await batch_service.create_file_log(
                     str(file_record.file_id),
@@ -105,7 +107,7 @@ async def process_batch_async(
                 await batch_service.update_file_record(file_record)
                 continue
             else:
-                logger.info("sql_in_file: %s", sql_in_file)
+                logger.info("File content loaded", file_id=str(file_record.file_id), batch_id=batch_id)
 
             # Convert the file
             converted_query = await convert_script(
@@ -123,17 +125,14 @@ async def process_batch_async(
             else:
                 await batch_service.update_file_counts(file["file_id"])
         except UnicodeDecodeError as ucde:
-            logger.error("Error decoding file: %s", file)
-            logger.error("Error decoding file. %s", ucde)
+            logger.error("Error decoding file", batch_id=batch_id, file_id=str(file_record.file_id), error=str(ucde))
             await process_error(ucde, file_record, batch_service)
         except ServiceResponseException as sre:
-            logger.error(file)
-            logger.error("Error processing file. %s", sre)
+            logger.error("Error processing file", batch_id=batch_id, file_id=str(file_record.file_id), error=str(sre))
             # insert data base write to file record stating invalid file
             await process_error(sre, file_record, batch_service)
         except Exception as exc:
-            logger.error(file)
-            logger.error("Error processing file. %s", exc)
+            logger.error("Error processing file", batch_id=batch_id, file_id=str(file_record.file_id), error=str(exc))
             # insert data base write to file record stating invalid file
             await process_error(exc, file_record, batch_service)
 
@@ -143,8 +142,8 @@ async def process_batch_async(
         await batch_service.update_batch(batch_id, ProcessStatus.COMPLETED)
     except Exception as exc:
         await batch_service.update_batch(batch_id, ProcessStatus.FAILED)
-        logger.error("Error updating batch status. %s", exc)
-    logger.info("Batch processing complete.")
+        logger.error("Error updating final batch status", batch_id=batch_id, error=str(exc))
+    logger.info("Batch processing complete", batch_id=batch_id)
 
 
 async def process_error(

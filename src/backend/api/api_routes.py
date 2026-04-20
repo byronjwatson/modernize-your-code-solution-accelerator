@@ -3,8 +3,6 @@
 # Standard library
 import asyncio
 import io
-import logging
-import os
 import zipfile
 from typing import Optional
 
@@ -14,8 +12,6 @@ from api.event_utils import track_event_if_configured
 from api.status_updates import app_connection_manager, close_connection
 
 # Third-party
-from azure.monitor.opentelemetry import configure_azure_monitor
-
 from common.logger.app_logger import AppLogger
 from common.services.batch_service import BatchService
 
@@ -39,20 +35,6 @@ from sql_agents.process_batch import process_batch_async
 router = APIRouter()
 logger = AppLogger("APIRoutes")
 
-# Check if the Application Insights Instrumentation Key is set in the environment variables
-instrumentation_key = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
-if instrumentation_key:
-    # Configure Application Insights if the Instrumentation Key is found
-    configure_azure_monitor(connection_string=instrumentation_key)
-    logging.info(
-        "Application Insights configured with the provided Instrumentation Key"
-    )
-else:
-    # Log a warning if the Instrumentation Key is not found
-    logging.warning(
-        "No Application Insights Instrumentation Key found. Skipping configuration"
-    )
-
 
 def record_exception_to_trace(e):
     """Record exception to the current OpenTelemetry trace span."""
@@ -60,6 +42,15 @@ def record_exception_to_trace(e):
     if span is not None:
         span.record_exception(e)
         span.set_status(Status(StatusCode.ERROR, str(e)))
+
+
+def set_span_attributes(**attributes):
+    """Set key-value attributes on the current OpenTelemetry span."""
+    span = trace.get_current_span()
+    if span and span.is_recording():
+        for key, value in attributes.items():
+            if value:
+                span.set_attribute(key, str(value))
 
 
 # start processing the batch
@@ -100,11 +91,13 @@ async def start_processing(request: Request):
       500:
         description: Internal server error
     """
+    batch_id = None
     try:
         payload = await request.json()
         batch_id = payload.get("batch_id")
         translate_from = payload.get("translate_from")
         translate_to = payload.get("translate_to")
+        set_span_attributes(batch_id=batch_id)
 
         track_event_if_configured(
             "ProcessingStart",
@@ -121,6 +114,10 @@ async def start_processing(request: Request):
             "message": "Files processed",
         }
     except Exception as e:
+        event_data = {"error": str(e)}
+        if batch_id is not None:
+            event_data["batch_id"] = batch_id
+        track_event_if_configured("ProcessingFailed", event_data)
         record_exception_to_trace(e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
@@ -164,6 +161,7 @@ async def download_files(batch_id: str):
     # call batch_service get_batch_for_zip to get all files for batch_id
     batch_service = BatchService()
     await batch_service.initialize_database()
+    set_span_attributes(batch_id=batch_id)
 
     file_data = await batch_service.get_batch_for_zip(batch_id)
     if not file_data:
@@ -205,6 +203,7 @@ async def download_files(batch_id: str):
         )
         return Response(zip_data, media_type="application/zip", headers=headers)
     except Exception as e:
+        track_event_if_configured("DownloadZipFailed", {"batch_id": batch_id, "error": str(e)})
         record_exception_to_trace(e)
         raise HTTPException(
             status_code=404, detail=f"Error creating ZIP file: {str(e)}"
@@ -288,7 +287,7 @@ async def batch_status_updates(
         await close_connection(batch_id)
     except Exception as e:
         record_exception_to_trace(e)
-        logger.error("Error in WebSocket connection", error=str(e))
+        logger.error("Error in WebSocket connection", error=str(e), batch_id=batch_id)
         await close_connection(batch_id)
 
 
@@ -391,15 +390,16 @@ async def get_batch_status(request: Request, batch_id: str):
         # Authenticate user
         authenticated_user = get_authenticated_user(request)
         user_id = authenticated_user.user_principal_id
+        set_span_attributes(batch_id=batch_id, user_id=user_id)
         if not user_id:
             track_event_if_configured(
-                "UserIdNotFound", {"status_code": 400, "detail": "no user"}
+                "UserIdNotFound", {"status_code": 400, "detail": "no user", "batch_id": batch_id}
             )
             raise HTTPException(status_code=401, detail="User not authenticated")
 
         # Validate batch_id format
         if not batch_service.is_valid_uuid(batch_id):
-            track_event_if_configured("InvalidBatchId", {"batch_id": batch_id})
+            track_event_if_configured("InvalidBatchId", {"batch_id": batch_id, "user_id": user_id})
             raise HTTPException(status_code=400, detail="Invalid batch_id format")
 
         # Fetch batch details
@@ -417,7 +417,7 @@ async def get_batch_status(request: Request, batch_id: str):
         record_exception_to_trace(e)
         raise e
     except Exception as e:
-        logger.error("Error retrieving batch history", error=str(e))
+        logger.error("Error retrieving batch history", error=str(e), batch_id=batch_id)
         record_exception_to_trace(e)
         error_message = str(e)
         if "403" in error_message:
@@ -435,9 +435,10 @@ async def get_batch_summary(request: Request, batch_id: str):
         # Authenticate user
         authenticated_user = get_authenticated_user(request)
         user_id = authenticated_user.user_principal_id
+        set_span_attributes(batch_id=batch_id, user_id=user_id)
         if not user_id:
             track_event_if_configured(
-                "UserIdNotFound", {"status_code": 400, "detail": "no user"}
+                "UserIdNotFound", {"status_code": 400, "detail": "no user", "batch_id": batch_id}
             )
             raise HTTPException(status_code=401, detail="User not authenticated")
 
@@ -449,16 +450,16 @@ async def get_batch_summary(request: Request, batch_id: str):
             )
             raise HTTPException(status_code=404, detail="No batch summary found.")
         track_event_if_configured(
-            "BatchSummaryRetrieved", {"batch_summary": batch_summary}
+            "BatchSummaryRetrieved", {"batch_id": batch_id, "user_id": user_id, "batch_summary": batch_summary}
         )
         return batch_summary
 
     except HTTPException as e:
-        logger.error("Error fetching batch summary", error=str(e))
+        logger.error("Error fetching batch summary", error=str(e), batch_id=batch_id)
         record_exception_to_trace(e)
         raise e
     except Exception as e:
-        logger.error("Error fetching batch summary", error=str(e))
+        logger.error("Error fetching batch summary", error=str(e), batch_id=batch_id)
         record_exception_to_trace(e)
         raise HTTPException(status_code=404, detail="Batch not found") from e
 
@@ -556,16 +557,17 @@ async def upload_file(
         authenticated_user = get_authenticated_user(request)
         user_id = authenticated_user.user_principal_id
 
+        set_span_attributes(batch_id=batch_id, user_id=user_id)
         if not user_id:
             track_event_if_configured(
-                "UserIdNotFound", {"status_code": 400, "detail": "no user"}
+                "UserIdNotFound", {"status_code": 400, "detail": "no user", "batch_id": batch_id}
             )
             raise HTTPException(status_code=401, detail="User not authenticated")
 
         # Validate batch_id format
-        logger.info(f"batch_id: {batch_id}")
+        logger.info("Upload request received", batch_id=batch_id, filename=str(file.filename))
         if not batch_service.is_valid_uuid(batch_id):
-            track_event_if_configured("InvalidBatchId", {"batch_id": batch_id})
+            track_event_if_configured("InvalidBatchId", {"batch_id": batch_id, "user_id": user_id})
             raise HTTPException(status_code=400, detail="Invalid batch_id format")
 
         # Upload file via BatchService
@@ -678,6 +680,7 @@ async def get_file_details(request: Request, file_id: str):
         # Authenticate user
         authenticated_user = get_authenticated_user(request)
         user_id = authenticated_user.user_principal_id
+        set_span_attributes(file_id=file_id, user_id=user_id)
         if not user_id:
             track_event_if_configured(
                 "UserIdNotFound", {"endpoint": "get_file_details"}
@@ -686,22 +689,22 @@ async def get_file_details(request: Request, file_id: str):
 
         # Validate file_id format
         if not batch_service.is_valid_uuid(file_id):
-            track_event_if_configured("InvalidFileId", {"file_id": file_id})
+            track_event_if_configured("InvalidFileId", {"file_id": file_id, "user_id": user_id})
             raise HTTPException(status_code=400, detail="Invalid file_id format")
 
         # Fetch file details
         file_data = await batch_service.get_file_report(file_id)
         if not file_data:
-            track_event_if_configured("FileNotFound", {"file_id": file_id})
+            track_event_if_configured("FileNotFound", {"file_id": file_id, "user_id": user_id})
             raise HTTPException(status_code=404, detail="File not found")
-        track_event_if_configured("FileDetailsRetrieved", {"file_data": file_data})
+        track_event_if_configured("FileDetailsRetrieved", {"file_id": file_id, "user_id": user_id, "file_data": file_data})
         return file_data
 
     except HTTPException as e:
         record_exception_to_trace(e)
         raise e
     except Exception as e:
-        logger.error("Error retrieving file details", error=str(e))
+        logger.error("Error retrieving file details", error=str(e), file_id=file_id)
         record_exception_to_trace(e)
         raise HTTPException(status_code=500, detail="Internal server error") from e
 
@@ -739,15 +742,16 @@ async def delete_batch_details(request: Request, batch_id: str):
         # Authenticate user
         authenticated_user = get_authenticated_user(request)
         user_id = authenticated_user.user_principal_id
+        set_span_attributes(batch_id=batch_id, user_id=user_id)
         if not user_id:
             track_event_if_configured(
-                "UserIdNotFound", {"endpoint": "delete_batch_details"}
+                "UserIdNotFound", {"batch_id": batch_id, "endpoint": "delete_batch_details"}
             )
             raise HTTPException(status_code=401, detail="User not authenticated")
 
         # Validate file_id format
         if not batch_service.is_valid_uuid(batch_id):
-            track_event_if_configured("InvalidBatchId", {"batch_id": batch_id})
+            track_event_if_configured("InvalidBatchId", {"batch_id": batch_id, "user_id": user_id})
             raise HTTPException(
                 status_code=400, detail=f"Invalid batch_id format: {batch_id}"
             )
@@ -763,7 +767,7 @@ async def delete_batch_details(request: Request, batch_id: str):
         record_exception_to_trace(e)
         raise e
     except Exception as e:
-        logger.error("Failed to delete batch from database", error=str(e))
+        logger.error("Failed to delete batch from database", error=str(e), batch_id=batch_id)
         record_exception_to_trace(e)
         raise HTTPException(status_code=500, detail="Database connection error") from e
 
@@ -801,6 +805,7 @@ async def delete_file_details(request: Request, file_id: str):
         # Authenticate user
         authenticated_user = get_authenticated_user(request)
         user_id = authenticated_user.user_principal_id
+        set_span_attributes(file_id=file_id, user_id=user_id)
         if not user_id:
             track_event_if_configured(
                 "UserIdNotFound", {"endpoint": "delete_file_details"}
@@ -809,7 +814,7 @@ async def delete_file_details(request: Request, file_id: str):
 
         # Validate file_id format
         if not batch_service.is_valid_uuid(file_id):
-            track_event_if_configured("InvalidFileId", {"file_id": file_id})
+            track_event_if_configured("InvalidFileId", {"file_id": file_id, "user_id": user_id})
             raise HTTPException(
                 status_code=400, detail=f"Invalid file_id format: {file_id}"
             )
@@ -817,7 +822,7 @@ async def delete_file_details(request: Request, file_id: str):
         # Delete file
         file_delete = await batch_service.delete_file(file_id, user_id)
         if file_delete is None:
-            track_event_if_configured("FileDeleteNotFound", {"file_id": file_id})
+            track_event_if_configured("FileDeleteNotFound", {"file_id": file_id, "user_id": user_id})
             raise HTTPException(status_code=404, detail=f"File not found: {file_id}")
 
         logger.info(f"File deleted successfully: {file_delete}")
@@ -828,7 +833,7 @@ async def delete_file_details(request: Request, file_id: str):
         record_exception_to_trace(e)
         raise e
     except Exception as e:
-        logger.error("Failed to delete file from database", error=str(e))
+        logger.error("Failed to delete file from database", error=str(e), file_id=file_id)
         record_exception_to_trace(e)
         raise HTTPException(status_code=500, detail="Database connection error") from e
 

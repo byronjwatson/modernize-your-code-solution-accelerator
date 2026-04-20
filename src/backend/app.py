@@ -5,8 +5,11 @@ from contextlib import asynccontextmanager
 
 from api.api_routes import router as backend_router
 
+from azure.monitor.opentelemetry import configure_azure_monitor
+
 from common.config.config import app_config
 from common.logger.app_logger import AppLogger
+from common.telemetry import patch_instrumentors
 
 from dotenv import load_dotenv
 
@@ -14,6 +17,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from helper.azure_credential_utils import get_azure_credential
+
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from semantic_kernel.agents.azure_ai.azure_ai_agent import AzureAIAgent  # pylint: disable=E0611
 
@@ -42,9 +47,17 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 
+# Suppress noisy Azure SDK and OpenTelemetry internal loggers.
+logging.getLogger("azure.core.pipeline.policies.http_logging_policy").setLevel(logging.WARNING)
+logging.getLogger("azure.core.pipeline.policies._universal").setLevel(logging.WARNING)
+logging.getLogger("azure.cosmos").setLevel(logging.WARNING)
+logging.getLogger("opentelemetry.sdk").setLevel(logging.WARNING)
+logging.getLogger("azure.monitor.opentelemetry.exporter.export._base").setLevel(logging.WARNING)
+
 # Package config: Azure loggers set to WARNING to suppress INFO
 for logger_name in AZURE_LOGGING_PACKAGES:
     logging.getLogger(logger_name).setLevel(getattr(logging, AZURE_PACKAGE_LOGGING_LEVEL, logging.WARNING))
+
 
 logger = AppLogger("app")
 
@@ -60,7 +73,7 @@ async def lifespan(app: FastAPI):
 
     # Startup
     try:
-        logger.logger.info("Initializing SQL agents...")
+        logger.info("Initializing SQL agents...")
 
         # Create Azure credentials and client
         creds = get_azure_credential(app_config.azure_client_id)
@@ -81,10 +94,10 @@ async def lifespan(app: FastAPI):
 
         # Set the global agents instance
         set_sql_agents(sql_agents)
-        logger.logger.info("SQL agents initialized successfully.")
+        logger.info("SQL agents initialized successfully.")
 
-    except Exception as exc:
-        logger.logger.error("Failed to initialize SQL agents: %s", exc)
+    except Exception:  # noqa: BLE001
+        logger.error("Failed to initialize SQL agents")
         # Don't raise the exception to allow the app to start even if agents fail
 
     yield  # Application runs here
@@ -92,9 +105,9 @@ async def lifespan(app: FastAPI):
     # Shutdown
     try:
         if sql_agents:
-            logger.logger.info("Application shutting down - cleaning up SQL agents...")
+            logger.info("Application shutting down - cleaning up SQL agents...")
             await sql_agents.delete_agents()
-            logger.logger.info("SQL agents cleaned up successfully.")
+            logger.info("SQL agents cleaned up successfully.")
 
             # Clear the global agents instance
             await clear_sql_agents()
@@ -102,8 +115,8 @@ async def lifespan(app: FastAPI):
         if azure_client:
             await azure_client.close()
 
-    except Exception as exc:
-        logger.logger.error("Error during agent cleanup: %s", exc)
+    except Exception:  # noqa: BLE001
+        logger.error("Error during agent cleanup")
 
 
 def create_app() -> FastAPI:
@@ -118,6 +131,29 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # Configure Azure Monitor and instrument FastAPI for OpenTelemetry
+    # This must happen AFTER app creation but BEFORE route registration
+    instrumentation_key = os.getenv("APPLICATIONINSIGHTS_CONNECTION_STRING")
+    if instrumentation_key:
+        # Patch azure.ai.agents, azure.ai.projects instrumentor to handle dict response_format (prevents ValueError)
+        patch_instrumentors()
+
+        # Configure Azure Monitor with FULL auto-instrumentation
+        configure_azure_monitor(
+            connection_string=instrumentation_key,
+            enable_live_metrics=True
+        )
+
+        # Instrument FastAPI for HTTP request/response tracing
+        FastAPIInstrumentor.instrument_app(
+            app,
+            excluded_urls="health,socket,ws",
+        )
+
+        logger.info("Application Insights configured with full auto-instrumentation")
+    else:
+        logger.warning("No Application Insights connection string found. Telemetry disabled.")
 
     # Include routers with /api prefix
     app.include_router(backend_router, prefix="/api", tags=["backend"])
