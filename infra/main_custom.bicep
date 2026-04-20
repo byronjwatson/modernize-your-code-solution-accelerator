@@ -229,7 +229,7 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
     tags: allTags
     enableTelemetry: enableTelemetry
     // WAF aligned configuration for Redundancy
-    dailyQuotaGb: enableRedundancy ? 10 : null //WAF recommendation: 10 GB per day is a good starting point for most workloads
+    dailyQuotaGb: enableRedundancy ? '10' : null //WAF recommendation: 10 GB per day is a good starting point for most workloads
     replication: enableRedundancy
       ? {
           enabled: true
@@ -278,8 +278,6 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
 
 // Log Analytics workspace ID, customer ID, and shared key (existing or new) 
 var logAnalyticsWorkspaceResourceId = useExistingLogAnalytics ? existingLogAnalyticsWorkspaceId : logAnalyticsWorkspace!.outputs.resourceId
-var LogAnalyticsPrimarySharedKey string = useExistingLogAnalytics? existingLogAnalyticsWorkspace.listKeys().primarySharedKey : logAnalyticsWorkspace.outputs.primarySharedKey
-var LogAnalyticsWorkspaceId = useExistingLogAnalytics? existingLogAnalyticsWorkspace.properties.customerId : logAnalyticsWorkspace!.outputs.logAnalyticsWorkspaceId
 var logAnalyticsWorkspaceName = useExistingLogAnalytics ? existingLawName : logAnalyticsWorkspace!.outputs.name
 
 module applicationInsights 'br/public:avm/res/insights/component:0.7.1' = if (enableMonitoring) {
@@ -383,7 +381,7 @@ module bastionHost 'br/public:avm/res/network/bastion-host:0.8.2' = if (enablePr
     enableTelemetry: enableTelemetry
     publicIPAddressObject: {
       name: 'pip-${bastionHostName}'
-      zones: []
+      availabilityZones: []
     }
   }
 }
@@ -503,15 +501,6 @@ module windowsVmDataCollectionRules 'br/public:avm/res/insights/data-collection-
             streams: [
               'Microsoft-WindowsEvent'
             ]
-            eventLogName: 'Security'
-            eventTypes: [
-              {
-                eventType: 'Audit Success'
-              }
-              {
-                eventType: 'Audit Failure'
-              }
-            ]
             xPathQueries: [
               'Security!*[System[(EventID=4624 or EventID=4625)]]'
             ]
@@ -565,7 +554,7 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.22.0' = if (e
     enableTelemetry: enableTelemetry
     computerName: take(virtualMachineResourceName, 15)
     osType: 'Windows'
-    vmSize: !empty(vmSize) ? vmSize : 'Standard_D2s_v5'
+    vmSize: !empty(vmSize) ? vmSize! : 'Standard_D2s_v5'
     adminUsername: !empty(vmAdminUsername) ? vmAdminUsername : 'JumpboxAdminUser'
     adminPassword: !empty(vmAdminPassword) ? vmAdminPassword : 'JumpboxAdminP@ssw0rd1234!'
     managedIdentities: {
@@ -573,10 +562,10 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.22.0' = if (e
     }
     patchMode: 'AutomaticByPlatform'
     bypassPlatformSafetyChecksOnUserSchedule: true
-    maintenanceConfigurationResourceId: maintenanceConfiguration.outputs.resourceId
+    maintenanceConfigurationResourceId: maintenanceConfiguration!.outputs.resourceId
     enableAutomaticUpdates: true
     encryptionAtHost: false
-    proximityPlacementGroupResourceId: proximityPlacementGroup.outputs.resourceId
+    proximityPlacementGroupResourceId: proximityPlacementGroup!.outputs.resourceId
     availabilityZone: enableRedundancy ? 1 : -1
     imageReference: {
       publisher: 'microsoft-dsvm'
@@ -642,7 +631,7 @@ module virtualMachine 'br/public:avm/res/compute/virtual-machine:0.22.0' = if (e
       ? {
           dataCollectionRuleAssociations: [
             {
-              dataCollectionRuleResourceId: windowsVmDataCollectionRules.outputs.resourceId
+              dataCollectionRuleResourceId: windowsVmDataCollectionRules!.outputs.resourceId
               name: 'send-${logAnalyticsWorkspaceName}'
             }
           ]
@@ -877,16 +866,17 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.13.
         appIdentity.outputs.resourceId
       ]
     }
-    appInsightsConnectionString: enableMonitoring ? applicationInsights.outputs.connectionString : null
+    appInsightsConnectionString: enableMonitoring ? applicationInsights!.outputs.connectionString : null
     appLogsConfiguration: enableMonitoring
       ? {
           destination: 'log-analytics'
           logAnalyticsConfiguration: {
-            customerId: LogAnalyticsWorkspaceId
-            sharedKey: LogAnalyticsPrimarySharedKey
+            customerId: useExistingLogAnalytics ? existingLogAnalyticsWorkspace.properties.customerId : logAnalyticsWorkspace.outputs.logAnalyticsWorkspaceId
+            sharedKey: useExistingLogAnalytics ? existingLogAnalyticsWorkspace.listKeys().primarySharedKey : logAnalyticsWorkspace.outputs.primarySharedKey
           }
+          logAnalyticsWorkspaceResourceId: logAnalyticsWorkspaceResourceId
         }
-      : {}
+      : null
     workloadProfiles: enablePrivateNetworking
       ? [
           // NOTE: workload profiles are required for private networking
@@ -1032,11 +1022,11 @@ module containerAppBackend 'br/public:avm/res/app/container-app:0.22.0' = {
             ? [
                 {
                   name: 'APPLICATIONINSIGHTS_INSTRUMENTATION_KEY'
-                  value: applicationInsights.outputs.instrumentationKey
+                  value: applicationInsights!.outputs.instrumentationKey
                 }
                 {
                   name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-                  value: applicationInsights.outputs.connectionString
+                  value: applicationInsights!.outputs.connectionString
                 }
               ]
             : []
@@ -1153,7 +1143,7 @@ output resourceGroupName string = resourceGroup().name
 output WEB_APP_URL string = 'https://${containerAppFrontend.outputs.fqdn}'
 output COSMOSDB_ENDPOINT string = cosmosDb.outputs.endpoint
 output AZURE_BLOB_ACCOUNT_NAME string = storageAccount.outputs.name
-output AZURE_BLOB_ENDPOINT string = 'https://${storageAccount.outputs.name}.blob.core.windows.net/'
+output AZURE_BLOB_ENDPOINT string = 'https://${storageAccount.outputs.name}.blob.${environment().suffixes.storage}/'
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerRegistry.properties.loginServer
 output AZURE_AI_AGENT_PROJECT_NAME string = aiServices.outputs.aiProjectInfo.name
 output AZURE_AI_AGENT_ENDPOINT string = aiServices.outputs.aiProjectInfo.apiEndpoint
@@ -1167,7 +1157,7 @@ output COSMOSDB_DATABASE string = cosmosDb.outputs.databaseName
 output COSMOSDB_BATCH_CONTAINER string = cosmosDb.outputs.containerNames.batch
 output COSMOSDB_FILE_CONTAINER string = cosmosDb.outputs.containerNames.file
 output COSMOSDB_LOG_CONTAINER string = cosmosDb.outputs.containerNames.log
-output APPLICATIONINSIGHTS_CONNECTION_STRING string = enableMonitoring ? applicationInsights.outputs.connectionString : ''
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = enableMonitoring ? applicationInsights!.outputs.connectionString : ''
 output MIGRATOR_AGENT_MODEL_DEPLOY string = modelDeployment.name
 output PICKER_AGENT_MODEL_DEPLOY string = modelDeployment.name
 output FIXER_AGENT_MODEL_DEPLOY string = modelDeployment.name
