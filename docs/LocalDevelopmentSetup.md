@@ -252,6 +252,13 @@ az role assignment create \
   --role "Cognitive Services OpenAI User" \
   --scope /subscriptions/<subscription-id>/resourceGroups/<resource-group-name>/providers/Microsoft.CognitiveServices/accounts/<azure-openai-name>
 ```
+```bash
+# Assign Azure AI User role
+az role assignment create \
+  --assignee <aad-user-upn> \
+  --role "Azure AI User" \
+  --scope /subscriptions/<subscription-id>/resourceGroups/<resource-group-name>/providers/Microsoft.CognitiveServices/accounts/<azure-openai-name>
+```
 
 #### Other Required Roles
 Depending on the features you use, you may also need:
