@@ -1,5 +1,5 @@
 // This module is here solely to provide network injection for Cognitive Services.
-// The AVM Module 'br/public:avm/res/cognitive-services/account:0.14.2' does not support that feature as of version 0.11.0
+// The AVM Module 'br/public:avm/res/cognitive-services/account:0.14.2' does not support that feature as of version 0.14.2
 metadata name = 'Cognitive Services'
 metadata description = 'This module deploys a Cognitive Service.'
 

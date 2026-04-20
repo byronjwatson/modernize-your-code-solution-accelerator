@@ -80,7 +80,7 @@ module bastionHost 'br/public:avm/res/network/bastion-host:0.8.2' = {
     enableTelemetry: enableTelemetry
     publicIPAddressObject: {
       name: 'pip-${name}'
-      zones: []
+      availabilityZones: []
     }
   }
   dependsOn: [
