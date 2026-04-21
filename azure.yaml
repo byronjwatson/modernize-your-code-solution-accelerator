@@ -4,28 +4,22 @@ metadata:
 
 requiredVersions:
   azd: '>= 1.18.0 != 1.23.9'
+  bicep: '>= 0.33.0'
 
 parameters:
-  azureAiServiceLocation:
+  AzureAiServiceLocation:
     type: string
     default: japaneast
-
-services:
-  backend:
-    project: ./src/backend
-    host: containerapp
-    language: python
-    docker:
-      path: Dockerfile
-      remoteBuild: true
-  frontend:
-    project: ./src/frontend
-    host: containerapp
-    language: js
-    docker:
-      path: Dockerfile
-      remoteBuild: true
-
-infra:
-  provider: bicep
-  path: infra
+  Prefix:
+    type: string
+    default: azdtemp
+  baseUrl:
+    type: string
+    default: 'https://raw.githubusercontent.com/microsoft/Modernize-your-code-solution-accelerator'
+deployment:
+  mode: Incremental
+  template: ./infra/main.bicep  # Path to the main.bicep file inside the 'deployment' folder
+  parameters:
+    AzureAiServiceLocation: ${{ parameters.AzureAiServiceLocation }}
+    Prefix: ${{ parameters.Prefix }}
+    baseUrl: ${{ parameters.baseUrl }}
