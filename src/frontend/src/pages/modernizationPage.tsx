@@ -4,7 +4,6 @@ import Header from "../components/Header/Header";
 import HeaderTools from "../components/Header/HeaderTools";
 import PanelLeft from "../components/Panels/PanelLeft";
 import webSocketService from "../api/WebSocketService";
-import { useSelector } from 'react-redux';
 import {
   Button,
   Text,
@@ -479,9 +478,6 @@ const getPrintFileStatus = (status: string): string => {
 const ModernizationPage = () => {
   const { batchId } = useParams<{ batchId: string }>();
   const navigate = useNavigate();
-
-  // Redux state to listen for start processing completion
-  const batchState = useSelector((state: any) => state.batch);
   
   const [batchSummary, setBatchSummary] = useState<BatchSummary | null>(null);
   const styles = useStyles();
@@ -498,7 +494,6 @@ const ModernizationPage = () => {
   const [fileId, setFileId] = React.useState<string>("");
   const [expandedSections, setExpandedSections] = React.useState<string[]>([]);
   const [allFilesCompleted, setAllFilesCompleted] = useState(false);
-  const [progressPercentage, setProgressPercentage] = useState(0);
   const [isZipButtonDisabled, setIsZipButtonDisabled] = useState(true);
   const [fileLoading, setFileLoading] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState<number>(Date.now());
@@ -516,7 +511,7 @@ const ModernizationPage = () => {
         const selectedFile = files.find((f) => f.id === selectedFileId);
         if (!selectedFile || !selectedFile.translatedCode) {
           setFileLoading(true);
-          const newFileUpdate = await fetchFileFromAPI(selectedFile?.fileId || "");
+          await fetchFileFromAPI(selectedFile?.fileId || "");
           setFileLoading(false);
         } else {
 
@@ -988,13 +983,13 @@ useEffect(() => {
   // Set a timeout for initial loading - if no progress after 30 seconds, show error
   useEffect(() => {
     const loadingTimeout = setTimeout(() => {
-      if (progressPercentage < 5 && showLoading) {
+      if (showLoading) {
         setLoadingError('Processing is taking longer than expected. You can continue waiting or try again later.');
       }
     }, 30000);
 
     return () => clearTimeout(loadingTimeout);
-  }, [progressPercentage, showLoading]);
+  }, [showLoading]);
 
   // Poll summary status during inactivity, but do not force completion/navigation by timeout.
   useEffect(() => {
