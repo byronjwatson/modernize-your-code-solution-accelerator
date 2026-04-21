@@ -29,7 +29,7 @@ import {
 } from "@fluentui/react-icons"
 import { Light as SyntaxHighlighter } from "react-syntax-highlighter"
 import { vs } from "react-syntax-highlighter/dist/esm/styles/hljs"
-import sql from "react-syntax-highlighter/dist/cjs/languages/hljs/sql"
+import sqlLang from "react-syntax-highlighter/dist/esm/languages/hljs/sql"
 import { useNavigate, useParams } from "react-router-dom"
 import { useState, useEffect, useCallback } from "react"
 import { getApiUrl, headerBuilder } from '../api/config';
@@ -42,6 +42,7 @@ import { format } from "sql-formatter";
 
 export const History = bundleIcon(HistoryFilled, HistoryRegular);
 
+const sql = typeof sqlLang === "function" ? sqlLang : sqlLang.default;
 SyntaxHighlighter.registerLanguage("sql", sql)
 
 const useStyles = makeStyles({
