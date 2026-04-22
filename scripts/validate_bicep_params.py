@@ -110,6 +110,8 @@ def parse_parameters_env_vars(json_path: Path) -> dict[str, list[str]]:
         data = json.loads(sanitized)
         params = data.get("parameters", {})
     except json.JSONDecodeError:
+        # If JSON parsing fails, params remains empty and no variables will be found.
+        # This is acceptable as the function will return an empty result dict.
         pass
 
     # Walk each top-level parameter and scan its entire serialized value
