@@ -1,12 +1,19 @@
 # Modernize your code solution accelerator
 
-This solution accelerator helps organizations transition their SQL queries to new environments quickly and efficiently. It is particularly useful for modernizing data estates, simplifying the process of translating SQL queries from various dialects. When dealing with legacy code, users often face significant challenges, including the absence of proper documentation, loss of knowledge of outdated languages, and missing business logic that explains functional requirements. The accelerator allows users to specify a group of SQL queries and the target SQL dialect for translation, then initiates a batch process where each query is translated using a group of Large Language Model (LLM) agents. This automation not only saves time but also ensures accuracy and consistency in query translation.
+Welcome to the *Modernize your code* solution accelerator, designed to help customers transition their SQL queries to new environments quickly and efficiently. This accelerator is particularly useful for organizations modernizing their data estates, as it simplifies the process of translating SQL queries from various dialects.
+
+When dealing with legacy code, users often face significant challenges, including the absence of proper documentation, loss of knowledge of outdated languages, and missing business logic that explains functional requirements.
+
+The Modernize your code solution accelerator allows users to specify a group of SQL queries and the target SQL dialect for translation. It then initiates a batch process where each query is translated using a group of Large Language Model (LLM) agents. This automation not only saves time but also ensures accuracy and consistency in query translation.
+
 
 ---
 
 [**SOLUTION OVERVIEW**](#solution-overview)  \| [**QUICK DEPLOY**](#quick-deploy)  \| [**BUSINESS SCENARIO**](#business-scenario)  \| [**SUPPORTING DOCUMENTATION**](#supporting-documentation)
 
 ---
+
+**Note:** With any AI solutions you create using these templates, you are responsible for assessing all associated risks and for complying with all applicable laws and safety standards. Learn more in the transparency documents for [Agent Service](https://learn.microsoft.com/en-us/azure/ai-foundry/responsible-ai/agents/transparency-note) and [Agent Framework](https://github.com/microsoft/agent-framework/blob/main/TRANSPARENCY_FAQ.md).
 
 <img src="./docs/images/read_me/solution-overview.png" width="48" />
 
@@ -27,10 +34,11 @@ This architecture will be deployed with the 'sandbox' setting of our deployment 
 |---|
 
 ### Additional resources
-
-For detailed technical information, see the component documentation:
+If you'd like to customize the solution accelerator, here are some common areas to start:
 
 [Custom scenario](./docs/CustomizingScenario.md)
+
+For detailed technical information, see the component documentation:
 
 [Azure AI Foundry documentation](https://learn.microsoft.com/en-us/azure/ai-studio/)
 
